@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -28,10 +29,23 @@ type Handlers struct {
 
 // Open binds the UDP discovery socket on port and resolves the broadcast dst.
 //
-// WHY: SO_BROADCAST를 켜지 않으면 일부 OS(특히 Windows)에서 255.255.255.255로의
-// 송신이 거부된다(WSAEACCES). best-effort로 설정한다.
+// WHY: 두 가지 소켓 옵션이 필요하다.
+//   - SO_REUSEADDR: 같은 PC에서 인스턴스 여럿이 같은 17000을 바인딩해 모두
+//     브로드캐스트를 받게 한다(문서화된 같은-PC 2인스턴스 테스트). bind 전에
+//     설정해야 하므로 ListenConfig.Control을 쓴다.
+//   - SO_BROADCAST: 미설정 시 일부 OS(특히 Windows)에서 255.255.255.255 송신이
+//     거부된다(WSAEACCES). bind 후 설정.
 func Open(port int) (net.PacketConn, net.Addr, error) {
-	conn, err := net.ListenPacket("udp4", fmt.Sprintf(":%d", port))
+	lc := net.ListenConfig{
+		Control: func(_, _ string, c syscall.RawConn) error {
+			var serr error
+			if err := c.Control(func(fd uintptr) { serr = controlReuse(fd) }); err != nil {
+				return err
+			}
+			return serr
+		},
+	}
+	conn, err := lc.ListenPacket(context.Background(), "udp4", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, nil, fmt.Errorf("discovery: listen udp: %w", err)
 	}

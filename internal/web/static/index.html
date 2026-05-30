@@ -1,9 +1,69 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head><meta charset="UTF-8" /><title>RedPhone</title></head>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RedPhone ☎</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
 <body>
-<!-- Phase 7(#11)에서 실제 UI로 대체됩니다. 지금은 embed 컴파일/정적 서빙 검증용 자리표시자. -->
-<h1>RedPhone ☎</h1>
-<p>booting…</p>
+<div class="app">
+  <!-- ===== Sidebar: peers ===== -->
+  <aside class="side" id="side">
+    <header class="brand">
+      <div class="phone" id="ring">☎</div>
+      <div class="who">
+        <h1>RedPhone</h1>
+        <small id="selfName">connecting…</small>
+      </div>
+      <button class="exit" id="exitBtn" title="종료">⏻ 종료</button>
+    </header>
+
+    <div class="conn"><span class="led" id="wsLed"></span><span id="wsState">연결 중…</span></div>
+
+    <div class="sec-label">피어 <span class="count" id="peerCount">0</span></div>
+    <ul class="peers" id="peers"></ul>
+    <p class="empty" id="peersEmpty">같은 LAN의 RedPhone을 찾는 중…</p>
+
+    <div class="sec-label">URL 공유</div>
+    <div class="share-box">
+      <label class="filebtn">파일 공유 링크 만들기
+        <input type="file" id="shareInput" hidden />
+      </label>
+      <ul class="shares" id="shares"></ul>
+    </div>
+  </aside>
+
+  <!-- ===== Main: conversation ===== -->
+  <main class="main">
+    <button class="menu" id="menuBtn">☰</button>
+    <header class="chat-head">
+      <span class="led" id="peerLed"></span>
+      <strong id="chatTitle">피어를 선택하세요</strong>
+      <span class="peer-ip" id="chatIP"></span>
+    </header>
+
+    <section class="log" id="log">
+      <div class="placeholder" id="placeholder">
+        <div class="big">☎</div>
+        <p>왼쪽에서 피어를 골라 쪽지를 보내세요.<br />같은 네트워크면 자동으로 나타납니다.</p>
+      </div>
+    </section>
+
+    <footer class="composer" id="composer" hidden>
+      <label class="attach" title="파일 전송">📎
+        <input type="file" id="fileInput" hidden />
+      </label>
+      <input type="text" id="text" placeholder="메시지 입력 후 Enter…" autocomplete="off" />
+      <button id="sendBtn">전송</button>
+    </footer>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="toast" id="toast"></div>
+<div class="bye" id="bye" hidden><div class="big">☎</div><p>RedPhone이 종료되었습니다.<br />이 창을 닫아도 됩니다.</p></div>
+
+<script src="/app.js"></script>
 </body>
 </html>
