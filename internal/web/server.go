@@ -24,9 +24,10 @@ type Options struct {
 	Reg     *peer.Registry
 	SelfID  string
 	Name    string
-	History *message.History
-	Client  *http.Client // 피어 중계용; nil이면 http.DefaultClient
-	NowMs   func() int64  // 테스트 주입용; nil이면 wall clock
+	History     *message.History
+	Client      *http.Client // 피어 중계용; nil이면 http.DefaultClient
+	NowMs       func() int64 // 테스트 주입용; nil이면 wall clock
+	DownloadDir string       // 수신 파일 저장 위치; ""이면 "downloads"
 }
 
 // Server owns the HTTP routing surface and the WS hub.
@@ -49,7 +50,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/peers", s.handlePeers)
 	mux.HandleFunc("GET /api/history", s.handleHistory)
 	mux.HandleFunc("POST /api/send", s.handleSend)
+	mux.HandleFunc("POST /api/sendfile", s.handleSendFile)
 	mux.HandleFunc("POST /inbox/message", s.handleInboxMessage)
+	mux.HandleFunc("POST /inbox/file", s.handleInboxFile)
 	mux.HandleFunc("GET /ws", s.handleWS)
 	mux.Handle("GET /", s.staticHandler())
 	return mux
