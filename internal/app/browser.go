@@ -1,7 +1,7 @@
 package app
 
 import (
-	"log"
+	"log/slog"
 	"os/exec"
 	"runtime"
 )
@@ -25,6 +25,6 @@ func openBrowser(url string) {
 		cmd, args = "xdg-open", []string{url}
 	}
 	if err := exec.Command(cmd, args...).Start(); err != nil {
-		log.Printf("redphone: 브라우저 자동 오픈 실패(%v) — 수동으로 %s 열어주세요", err, url)
+		slog.Warn("browser open failed; open manually", "err", err, "url", url)
 	}
 }

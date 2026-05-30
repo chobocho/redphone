@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -126,7 +126,7 @@ func Run(ctx context.Context, cfg Config) error {
 	go watchStdin(ctx, stdinOf(cfg), cancel)
 
 	httpURL := fmt.Sprintf("http://localhost:%d", httpPort)
-	log.Printf("redphone: %q id=%s  UI=%s  discovery=:%d", cfg.Name, selfID, httpURL, dport)
+	slog.Info("redphone up", "name", cfg.Name, "id", selfID, "ui", httpURL, "discovery", dport)
 	if cfg.OnReady != nil {
 		cfg.OnReady(httpURL)
 	}
@@ -144,7 +144,7 @@ func Run(ctx context.Context, cfg Config) error {
 	shCancel()
 	// ③ hub/ticker는 ctx.Done로 이미 멈춘다. ④ 전부 합류.
 	wg.Wait()
-	log.Print("redphone: stopped")
+	slog.Info("redphone stopped")
 	return nil
 }
 
