@@ -25,20 +25,25 @@ type Options struct {
 	Name   string
 }
 
-// Server owns the HTTP routing surface.
+// Server owns the HTTP routing surface and the WS hub.
 type Server struct {
 	opt Options
+	hub *Hub
 }
 
-// New constructs a Server. 핸들러는 Handler()에서 조립한다.
+// New constructs a Server with a fresh WS hub. 핸들러는 Handler()에서 조립한다.
 func New(opt Options) *Server {
-	return &Server{opt: opt}
+	return &Server{opt: opt, hub: NewHub()}
 }
+
+// Hub exposes the WS hub so the app lifecycle can Run it and push events.
+func (s *Server) Hub() *Hub { return s.hub }
 
 // Handler builds the routing mux. Go 1.22+ 메서드 패턴으로 메서드/경로를 분리한다.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/peers", s.handlePeers)
+	mux.HandleFunc("GET /ws", s.handleWS)
 	mux.Handle("GET /", s.staticHandler())
 	return mux
 }
