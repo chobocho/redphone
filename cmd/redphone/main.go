@@ -16,11 +16,15 @@ import (
 func main() {
 	name := flag.String("name", defaultName(), "표시 이름")
 	port := flag.Int("port", 17080, "HTTP 포트(사용 중이면 OS 자동 폴백)")
+	dport := flag.Int("dport", 17000, "Discovery UDP 포트")
+	open := flag.Bool("open", true, "기동 시 기본 브라우저 자동 오픈")
 	flag.Parse()
 
 	if err := app.Run(context.Background(), app.Config{
-		Name:     *name,
-		HTTPPort: *port,
+		Name:          *name,
+		HTTPPort:      *port,
+		DiscoveryPort: *dport,
+		OpenBrowser:   *open,
 	}); err != nil {
 		log.Fatalf("redphone: %v", err)
 	}

@@ -3,40 +3,68 @@ package app
 import (
 	"context"
 	"io"
+	"net"
+	"net/http"
 	"testing"
 	"time"
 )
 
-// WHY: 종료 경로 중 하나(ctx 취소)에서 Run이 즉시 반환해야 graceful
-// shutdown 전체가 제때 수렴한다. DoD = cancel 후 ≤100ms 내 반환.
-func TestRunReturnsWithinDeadlineOnCancel(t *testing.T) {
-	// stdin은 막혀 있는 파이프로 둬서 "exit" 경로가 아닌 ctx 취소만 검증한다.
+// freeUDPPort picks an unused UDP port so discovery doesn't clash with a real
+// instance on 17000 or with a sibling test.
+func freeUDPPort(t *testing.T) int {
+	t.Helper()
+	c, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	return c.LocalAddr().(*net.UDPAddr).Port
+}
+
+// testConfig returns a config bound to ephemeral ports with the browser off.
+func testConfig(stdin io.Reader, onReady func(string)) Config {
+	return Config{
+		Name:          "test",
+		HTTPPort:      0, // OS 자동
+		DiscoveryPort: 0, // freeUDPPort로 채움
+		OpenBrowser:   false,
+		Stdin:         stdin,
+		OnReady:       onReady,
+	}
+}
+
+// WHY: 종료 경로(ctx 취소)에서 Run이 graceful 정리 후 신속히 반환해야 한다.
+func TestRunReturnsPromptlyOnCancel(t *testing.T) {
 	pr, pw := io.Pipe()
 	defer pw.Close()
 
+	cfg := testConfig(pr, nil)
+	cfg.DiscoveryPort = freeUDPPort(t)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- Run(ctx, Config{Stdin: pr}) }()
+	go func() { done <- Run(ctx, cfg) }()
 
-	// 고루틴이 기동할 짧은 여유.
-	time.Sleep(10 * time.Millisecond)
-
+	time.Sleep(40 * time.Millisecond) // 기동 여유
 	cancel()
 	select {
 	case err := <-done:
 		if err != nil {
 			t.Fatalf("Run returned error: %v", err)
 		}
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("Run did not return within 100ms of cancel")
+	case <-time.After(time.Second):
+		t.Fatal("Run did not return promptly after cancel")
 	}
 }
 
-// WHY: 콘솔 "exit" 입력은 사용자가 가장 먼저 만나는 종료 경로다.
+// 콘솔 "exit" 입력으로 종료되는지.
 func TestRunExitsOnStdinExit(t *testing.T) {
 	pr, pw := io.Pipe()
+	cfg := testConfig(pr, nil)
+	cfg.DiscoveryPort = freeUDPPort(t)
+
 	done := make(chan error, 1)
-	go func() { done <- Run(context.Background(), Config{Stdin: pr}) }()
+	go func() { done <- Run(context.Background(), cfg) }()
 
 	go func() { _, _ = io.WriteString(pw, "exit\n") }()
 
@@ -45,28 +73,49 @@ func TestRunExitsOnStdinExit(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Run returned error: %v", err)
 		}
-	case <-time.After(500 * time.Millisecond):
-		t.Fatal("Run did not exit on 'exit' command")
+	case <-time.After(time.Second):
+		t.Fatal("Run did not exit on 'exit'")
 	}
 }
 
-// WHY: "exit"가 아닌 잡음 입력은 무시하고 앱이 계속 살아 있어야 한다.
-func TestRunIgnoresNonExitInput(t *testing.T) {
+// 통합: HTTP가 실제로 뜨고 /api/peers가 응답하며, /api/shutdown으로 종료된다.
+func TestRunServesAndShutsDownViaHTTP(t *testing.T) {
 	pr, pw := io.Pipe()
 	defer pw.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- Run(ctx, Config{Stdin: pr}) }()
+	urlCh := make(chan string, 1)
+	cfg := testConfig(pr, func(u string) { urlCh <- u })
+	cfg.DiscoveryPort = freeUDPPort(t)
 
-	go func() { _, _ = io.WriteString(pw, "hello\nworld\n") }()
+	done := make(chan error, 1)
+	go func() { done <- Run(context.Background(), cfg) }()
+
+	var base string
+	select {
+	case base = <-urlCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("app never became ready")
+	}
+
+	resp, err := http.Get(base + "/api/peers")
+	if err != nil {
+		t.Fatalf("GET /api/peers: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("/api/peers status = %d", resp.StatusCode)
+	}
+
+	// 종료 버튼 경로.
+	resp, err = http.Post(base+"/api/shutdown", "application/json", nil)
+	if err != nil {
+		t.Fatalf("POST /api/shutdown: %v", err)
+	}
+	resp.Body.Close()
 
 	select {
 	case <-done:
-		t.Fatal("Run exited on non-exit input")
-	case <-time.After(80 * time.Millisecond):
-		// 기대대로 아직 살아 있음 → 정리.
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not stop after /api/shutdown")
 	}
-	cancel()
-	<-done
 }

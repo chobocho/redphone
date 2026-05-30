@@ -26,13 +26,21 @@ type Handlers struct {
 	OnBye   func(id string)
 }
 
-// Open binds the UDP discovery socket and resolves the broadcast destination.
-func Open() (net.PacketConn, net.Addr, error) {
-	conn, err := net.ListenPacket("udp4", fmt.Sprintf(":%d", Port))
+// Open binds the UDP discovery socket on port and resolves the broadcast dst.
+//
+// WHY: SO_BROADCAST를 켜지 않으면 일부 OS(특히 Windows)에서 255.255.255.255로의
+// 송신이 거부된다(WSAEACCES). best-effort로 설정한다.
+func Open(port int) (net.PacketConn, net.Addr, error) {
+	conn, err := net.ListenPacket("udp4", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, nil, fmt.Errorf("discovery: listen udp: %w", err)
 	}
-	return conn, &net.UDPAddr{IP: net.IPv4bcast, Port: Port}, nil
+	if uc, ok := conn.(*net.UDPConn); ok {
+		if rc, cerr := uc.SyscallConn(); cerr == nil {
+			_ = rc.Control(func(fd uintptr) { _ = enableBroadcast(fd) })
+		}
+	}
+	return conn, &net.UDPAddr{IP: net.IPv4bcast, Port: port}, nil
 }
 
 // Run drives broadcast + listen until ctx is cancelled, then sends one final

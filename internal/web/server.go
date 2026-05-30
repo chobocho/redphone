@@ -31,6 +31,7 @@ type Options struct {
 	DownloadDir string       // 수신 파일 저장 위치; ""이면 "downloads"
 	Shares      *share.Store // URL 공유 저장소; nil이면 공유 비활성
 	ShareHost   string       // 공유 URL의 host:port 강제값; ""이면 r.Host
+	Shutdown    func()       // 종료 버튼 콜백(보통 root ctx의 cancel)
 }
 
 // Server owns the HTTP routing surface and the WS hub.
@@ -60,9 +61,19 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/shares", s.handleShareList)
 	mux.HandleFunc("DELETE /api/share/{token}", s.handleShareRevoke)
 	mux.HandleFunc("GET /s/{token}", s.handleServeShare)
+	mux.HandleFunc("POST /api/shutdown", s.handleShutdown)
 	mux.HandleFunc("GET /ws", s.handleWS)
 	mux.Handle("GET /", s.staticHandler())
 	return mux
+}
+
+// handleShutdown triggers graceful shutdown after replying, so the button
+// click gets a response before the server stops.
+func (s *Server) handleShutdown(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "bye"})
+	if s.opt.Shutdown != nil {
+		go s.opt.Shutdown()
+	}
 }
 
 func (s *Server) handlePeers(w http.ResponseWriter, _ *http.Request) {
