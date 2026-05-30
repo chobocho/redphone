@@ -14,6 +14,7 @@ import (
 
 	"github.com/chobocho/redphone/internal/message"
 	"github.com/chobocho/redphone/internal/peer"
+	"github.com/chobocho/redphone/internal/share"
 )
 
 //go:embed static
@@ -28,6 +29,8 @@ type Options struct {
 	Client      *http.Client // 피어 중계용; nil이면 http.DefaultClient
 	NowMs       func() int64 // 테스트 주입용; nil이면 wall clock
 	DownloadDir string       // 수신 파일 저장 위치; ""이면 "downloads"
+	Shares      *share.Store // URL 공유 저장소; nil이면 공유 비활성
+	ShareHost   string       // 공유 URL의 host:port 강제값; ""이면 r.Host
 }
 
 // Server owns the HTTP routing surface and the WS hub.
@@ -53,6 +56,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/sendfile", s.handleSendFile)
 	mux.HandleFunc("POST /inbox/message", s.handleInboxMessage)
 	mux.HandleFunc("POST /inbox/file", s.handleInboxFile)
+	mux.HandleFunc("POST /api/share", s.handleShareUpload)
+	mux.HandleFunc("GET /api/shares", s.handleShareList)
+	mux.HandleFunc("DELETE /api/share/{token}", s.handleShareRevoke)
+	mux.HandleFunc("GET /s/{token}", s.handleServeShare)
 	mux.HandleFunc("GET /ws", s.handleWS)
 	mux.Handle("GET /", s.staticHandler())
 	return mux
