@@ -10,6 +10,9 @@
   --r:10px;
 }
 *{box-sizing:border-box}
+/* WHY: CSS의 display 지정은 HTML `hidden` 속성을 무효화한다. bye 오버레이·
+   composer가 display:grid/flex 때문에 항상 보이던 버그를 전역으로 차단한다. */
+[hidden]{display:none!important}
 html,body{height:100%}
 body{
   margin:0;background:var(--bg);color:var(--txt);font-family:var(--kr);

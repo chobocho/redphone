@@ -1,0 +1,1 @@
+go build -o redphone.exe ./cmd/redphone

@@ -73,6 +73,19 @@ h1{font-family:var(--mono);font-size:20px;font-weight:800;margin:0;letter-spacin
   <div class="kicker">// TIMELINE (최신이 위)</div>
   <div id="log">
 
+    <div class="entry red">
+      <div class="when">2026-05-31 · 버그 수정</div>
+      <h3>종료 오버레이가 처음부터 떠 있던 CSS 버그 수정 <span class="tag">완료</span></h3>
+      <ul>
+        <li><b>증상:</b> 실행 시 "RedPhone이 종료되었습니다. 이 창을 닫아도 됩니다" 문구만 표시.</li>
+        <li><b>원인:</b> <code>.bye{display:grid}</code>·<code>.composer{display:flex}</code>가 HTML
+          <code>hidden</code> 속성(=display:none)을 무효화 → 오버레이가 항상 보임.</li>
+        <li><b>수정:</b> 전역 <code>[hidden]{display:none!important}</code> 규칙 추가.</li>
+        <li>재빌드 후 서빙 확인: 정상적으로 UI(피어목록·대화)가 먼저 표시됨.</li>
+      </ul>
+      <div class="commit">▸ fix(web): [hidden] 규칙으로 종료 오버레이 상시표시 버그 해결</div>
+    </div>
+
     <div class="entry">
       <div class="when">2026-05-30 · Phase 9 (#14)</div>
       <h3>마무리 — slog 로깅 · README · 상태 갱신 <span class="tag">완료</span></h3>
