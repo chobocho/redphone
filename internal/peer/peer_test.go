@@ -59,6 +59,17 @@ func TestExpireRemovesStaleKeepsFresh(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	r := NewRegistry()
+	r.Upsert(Peer{ID: "a", Name: "alpha", IP: "10.0.0.1", HTTPPort: 17080})
+	if p, ok := r.Get("a"); !ok || p.IP != "10.0.0.1" || p.HTTPPort != 17080 {
+		t.Fatalf("Get(a) = %+v, %v", p, ok)
+	}
+	if _, ok := r.Get("ghost"); ok {
+		t.Fatal("Get(ghost) should be false")
+	}
+}
+
 func TestRemove(t *testing.T) {
 	r := NewRegistry()
 	r.Upsert(Peer{ID: "a", Name: "a"})

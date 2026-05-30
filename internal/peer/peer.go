@@ -43,6 +43,17 @@ func (r *Registry) Upsert(p Peer) {
 	r.peers[p.ID] = p
 }
 
+// Get returns the peer with the given ID, if present.
+//
+// WHY: 쪽지/파일 전송은 대상 피어의 IP·포트가 필요하다. 전체 스냅샷을
+// 훑지 않고 단건 조회한다.
+func (r *Registry) Get(id string) (Peer, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	p, ok := r.peers[id]
+	return p, ok
+}
+
 // Remove deletes a peer by ID. Removing an unknown ID is a no-op.
 func (r *Registry) Remove(id string) {
 	r.mu.Lock()

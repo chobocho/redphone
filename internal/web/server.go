@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/chobocho/redphone/internal/message"
 	"github.com/chobocho/redphone/internal/peer"
 )
 
@@ -20,9 +21,12 @@ var staticFS embed.FS
 
 // Options carries the dependencies the server needs from the rest of the app.
 type Options struct {
-	Reg    *peer.Registry
-	SelfID string
-	Name   string
+	Reg     *peer.Registry
+	SelfID  string
+	Name    string
+	History *message.History
+	Client  *http.Client // 피어 중계용; nil이면 http.DefaultClient
+	NowMs   func() int64  // 테스트 주입용; nil이면 wall clock
 }
 
 // Server owns the HTTP routing surface and the WS hub.
@@ -43,6 +47,9 @@ func (s *Server) Hub() *Hub { return s.hub }
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/peers", s.handlePeers)
+	mux.HandleFunc("GET /api/history", s.handleHistory)
+	mux.HandleFunc("POST /api/send", s.handleSend)
+	mux.HandleFunc("POST /inbox/message", s.handleInboxMessage)
 	mux.HandleFunc("GET /ws", s.handleWS)
 	mux.Handle("GET /", s.staticHandler())
 	return mux
