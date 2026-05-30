@@ -73,6 +73,18 @@ h1{font-family:var(--mono);font-size:20px;font-weight:800;margin:0;letter-spacin
   <div class="kicker">// TIMELINE (최신이 위)</div>
   <div id="log">
 
+    <div class="entry">
+      <div class="when">2026-05-31 · 기능 추가</div>
+      <h3>전체 쪽지(브로드캐스트 메시지) 추가 <span class="tag">완료</span></h3>
+      <ul>
+        <li>원조 빨간전화기(X-PopUp)의 상징 기능 — 모든 피어에게 한 번에 쪽지 전송.</li>
+        <li>백엔드 <code>POST /api/broadcast {text}</code>: 전 피어 <code>/inbox/message</code> 중계, <code>{sent,failed}</code> 집계.</li>
+        <li>UI: 피어 목록 맨 위 고정 <b>📢 전체</b> 항목, 선택 후 전송 시 전체 발송 + 결과 토스트.</li>
+        <li>테스트: 2피어+죽은피어 → sent=2/failed=1, 피어 0명 정상 처리. 전체 스위트·vet 통과.</li>
+      </ul>
+      <div class="commit">▸ feat(web): 전체 쪽지(/api/broadcast) + 📢 전체 UI</div>
+    </div>
+
     <div class="entry red">
       <div class="when">2026-05-31 · 버그 수정</div>
       <h3>종료 오버레이가 처음부터 떠 있던 CSS 버그 수정 <span class="tag">완료</span></h3>

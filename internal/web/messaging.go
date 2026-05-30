@@ -54,6 +54,38 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
 }
 
+// handleBroadcast relays one note to every known peer (전체 쪽지) — the
+// signature feature of the original 빨간전화기.
+//
+// WHY: 한 명씩 고르지 않고 같은 LAN의 모든 인스턴스에 동시에 공지하는 용도.
+// 일부 피어가 오프라인이어도 나머지에는 전달되도록 실패는 집계만 한다.
+func (s *Server) handleBroadcast(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Text string `json:"text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad request"})
+		return
+	}
+	note := message.Note{
+		FromID: s.opt.SelfID,
+		From:   s.opt.Name,
+		Text:   req.Text,
+		TS:     s.now(),
+	}
+	peers := s.opt.Reg.Snapshot()
+	sent, failed := 0, 0
+	for _, p := range peers {
+		url := fmt.Sprintf("http://%s:%d/inbox/message", p.IP, p.HTTPPort)
+		if err := s.postJSON(r.Context(), url, note); err != nil {
+			failed++
+		} else {
+			sent++
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"sent": sent, "failed": failed})
+}
+
 // handleInboxMessage receives a note from a peer, stores it, and pushes to UI.
 func (s *Server) handleInboxMessage(w http.ResponseWriter, r *http.Request) {
 	var note message.Note

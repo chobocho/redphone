@@ -54,6 +54,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/peers", s.handlePeers)
 	mux.HandleFunc("GET /api/history", s.handleHistory)
 	mux.HandleFunc("POST /api/send", s.handleSend)
+	mux.HandleFunc("POST /api/broadcast", s.handleBroadcast)
 	mux.HandleFunc("POST /api/sendfile", s.handleSendFile)
 	mux.HandleFunc("POST /inbox/message", s.handleInboxMessage)
 	mux.HandleFunc("POST /inbox/file", s.handleInboxFile)

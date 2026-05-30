@@ -3,6 +3,7 @@
   "use strict";
 
   const $ = (id) => document.getElementById(id);
+  const ALL = "__all__"; // 전체 쪽지 대상(가상 피어)
   const state = {
     peers: [],            // [{id,name,ip,httpPort,...}]
     selected: null,       // peer id
@@ -33,6 +34,18 @@
     ul.innerHTML = "";
     $("peerCount").textContent = state.peers.length;
     $("peersEmpty").style.display = state.peers.length ? "none" : "block";
+
+    // 맨 위 고정: 전체 쪽지(모든 피어에게 한 번에). 원조 빨간전화기의 상징 기능.
+    const all = document.createElement("li");
+    all.className = "all" + (state.selected === ALL ? " active" : "");
+    const au = state.unread.get(ALL) || 0;
+    all.innerHTML =
+      `<span class="led on"></span><span class="nm">📢 전체</span>` +
+      (au ? `<span class="badge">${au}</span>` : "") +
+      `<span class="ip">${state.peers.length}명</span>`;
+    all.addEventListener("click", () => selectPeer(ALL));
+    ul.appendChild(all);
+
     for (const p of state.peers) {
       const li = document.createElement("li");
       if (p.id === state.selected) li.className = "active";
@@ -51,12 +64,20 @@
   function selectPeer(id) {
     state.selected = id;
     state.unread.set(id, 0);
-    const p = peerById(id);
     $("placeholder").style.display = "none";
     $("composer").hidden = false;
-    $("chatTitle").textContent = p ? (p.name || p.id) : "(오프라인)";
-    $("chatIP").textContent = p ? `${p.ip}:${p.httpPort}` : "";
-    $("peerLed").className = "led " + (p ? "on" : "off");
+    if (id === ALL) {
+      $("chatTitle").textContent = "📢 전체 쪽지";
+      $("chatIP").textContent = `${state.peers.length}명에게 전송`;
+      $("peerLed").className = "led on";
+      $("text").placeholder = "모든 피어에게 보낼 메시지…";
+    } else {
+      const p = peerById(id);
+      $("chatTitle").textContent = p ? (p.name || p.id) : "(오프라인)";
+      $("chatIP").textContent = p ? `${p.ip}:${p.httpPort}` : "";
+      $("peerLed").className = "led " + (p ? "on" : "off");
+      $("text").placeholder = "메시지 입력 후 Enter…";
+    }
     renderPeers();
     renderLog();
     closeSide();
@@ -92,6 +113,7 @@
     const text = input.value.trim();
     if (!text || !state.selected) return;
     input.value = "";
+    if (state.selected === ALL) return broadcastText(text);
     try {
       const res = await fetch("/api/send", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -107,8 +129,24 @@
     } catch (err) { toast("전송 오류: " + err.message); }
   }
 
+  async function broadcastText(text) {
+    try {
+      const res = await fetch("/api/broadcast", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const d = await jsonOrNull(res);
+      if (!res.ok || !d) { toast("전체 전송 실패"); return; }
+      pushMsg(ALL, { dir: "out", text, ts: Date.now() });
+      renderLog();
+      toast(`전체 전송: ${d.sent}명 성공${d.failed ? `, ${d.failed}명 실패` : ""}`);
+    } catch (err) { toast("전체 전송 오류: " + err.message); }
+  }
+
   async function sendFile(file) {
-    if (!file || !state.selected) return;
+    if (!file) return;
+    if (state.selected === ALL) { toast("전체 파일 전송은 미지원 — 피어를 선택하세요"); return; }
+    if (!state.selected) return;
     const fd = new FormData();
     fd.append("peerId", state.selected);
     fd.append("file", file);

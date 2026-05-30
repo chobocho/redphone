@@ -99,6 +99,77 @@ func TestSendRoundTripAndWSPush(t *testing.T) {
 	}
 }
 
+// 전체 쪽지: 모든 피어에 전달되고, 응답에 전송/실패 수가 집계돼야 한다.
+func TestBroadcastReachesAllPeers(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 수신자 둘
+	mkReceiver := func(id, name string) (*message.History, string) {
+		reg := peer.NewRegistry()
+		hist := message.NewHistory()
+		srv := New(Options{Reg: reg, SelfID: id, Name: name, History: hist})
+		go srv.Hub().Run(ctx)
+		ts := httptest.NewServer(srv.Handler())
+		t.Cleanup(ts.Close)
+		return hist, ts.URL
+	}
+	h1, url1 := mkReceiver("B", "bob")
+	h2, url2 := mkReceiver("C", "carol")
+
+	// 송신자 — 두 수신자 + 죽은 피어 하나 등록
+	aReg := peer.NewRegistry()
+	aSrv := New(Options{Reg: aReg, SelfID: "A", Name: "alice",
+		Client: &http.Client{Timeout: time.Second}})
+	aTS := httptest.NewServer(aSrv.Handler())
+	defer aTS.Close()
+
+	ip1, p1 := hostPort(t, url1)
+	ip2, p2 := hostPort(t, url2)
+	aReg.Upsert(peer.Peer{ID: "B", Name: "bob", IP: ip1, HTTPPort: p1})
+	aReg.Upsert(peer.Peer{ID: "C", Name: "carol", IP: ip2, HTTPPort: p2})
+	aReg.Upsert(peer.Peer{ID: "D", Name: "dead", IP: "127.0.0.1", HTTPPort: 1}) // 연결 거부
+
+	body, _ := json.Marshal(map[string]string{"text": "all hands"})
+	resp, err := http.Post(aTS.URL+"/api/broadcast", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("broadcast status = %d", resp.StatusCode)
+	}
+	var got struct{ Sent, Failed int }
+	json.NewDecoder(resp.Body).Decode(&got)
+	if got.Sent != 2 || got.Failed != 1 {
+		t.Fatalf("want sent=2 failed=1, got %+v", got)
+	}
+
+	if len(h1.All()) != 1 || h1.All()[0].Text != "all hands" {
+		t.Fatalf("bob did not receive broadcast: %+v", h1.All())
+	}
+	if len(h2.All()) != 1 || h2.All()[0].Text != "all hands" {
+		t.Fatalf("carol did not receive broadcast: %+v", h2.All())
+	}
+}
+
+// 피어가 없을 때 전체 쪽지는 sent=0으로 정상 처리(에러 아님).
+func TestBroadcastWithNoPeers(t *testing.T) {
+	srv := New(Options{Reg: peer.NewRegistry(), SelfID: "A", Name: "alice"})
+	rec := httptest.NewRecorder()
+	body, _ := json.Marshal(map[string]string{"text": "hi"})
+	req := httptest.NewRequest(http.MethodPost, "/api/broadcast", bytes.NewReader(body))
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d", rec.Code)
+	}
+	var got struct{ Sent, Failed int }
+	json.Unmarshal(rec.Body.Bytes(), &got)
+	if got.Sent != 0 || got.Failed != 0 {
+		t.Fatalf("want sent=0 failed=0, got %+v", got)
+	}
+}
+
 // 오프라인 피어로 보내면 404로 실패를 명시해야 한다.
 func TestSendToUnknownPeerReturns404(t *testing.T) {
 	srv := New(Options{Reg: peer.NewRegistry(), SelfID: "A", Name: "alice"})
