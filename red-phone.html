@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RedPhone · 빨간전화기 클론 작업 지시서</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+<style>
+/* =========================================================================
+   RedPhone Work Order — Operator-Console Theme
+   - signature red(빨간전화기) accent on near-black "switchboard" surface
+   - JetBrains Mono = terminal/headers/code, Pretendard = Korean body
+   ========================================================================= */
+:root{
+  --bg:#0c0e11;
+  --panel:#13161b;
+  --panel-2:#191d24;
+  --panel-3:#20252e;
+  --line:#272d37;
+  --line-soft:#1f242c;
+  --txt:#dfe4ec;
+  --txt-dim:#9aa3b0;
+  --txt-faint:#6b7480;
+  --red:#ff3b3b;          /* the red phone */
+  --red-soft:#ff6b6b;
+  --red-deep:#7c1d20;
+  --led-on:#37d99a;       /* line active */
+  --led-amber:#f6b53f;    /* pending */
+  --led-off:#3a414c;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --kr:'Pretendard',-apple-system,system-ui,sans-serif;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--txt);
+  font-family:var(--kr);font-size:15px;line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(900px 500px at 12% -8%, rgba(255,59,59,.10), transparent 60%),
+    radial-gradient(700px 600px at 110% 4%, rgba(55,217,154,.05), transparent 55%),
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size:auto,auto,26px 26px,26px 26px;
+  background-attachment:fixed;
+}
+/* faint scanline overlay */
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.025) 2px 3px);
+  mix-blend-mode:overlay;opacity:.6;
+}
+a{color:var(--red-soft);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- layout ---------- */
+.shell{display:grid;grid-template-columns:262px 1fr;min-height:100vh}
+.sidebar{
+  position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+  border-right:1px solid var(--line);background:rgba(15,18,23,.78);
+  backdrop-filter:blur(8px);padding:22px 16px 30px;
+}
+.main{max-width:1020px;margin:0 auto;padding:40px 34px 120px;width:100%}
+
+/* ---------- brand / sidebar ---------- */
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.phone{
+  width:40px;height:40px;border-radius:11px;flex:0 0 auto;
+  display:grid;place-items:center;font-size:21px;
+  background:linear-gradient(150deg,#ff4646,#b81f22);
+  box-shadow:0 0 0 1px rgba(255,107,107,.5),0 8px 24px rgba(255,59,59,.28);
+  animation:ring 3.4s ease-in-out infinite;
+}
+@keyframes ring{0%,86%,100%{transform:rotate(0)}88%{transform:rotate(-9deg)}90%{transform:rotate(9deg)}92%{transform:rotate(-7deg)}94%{transform:rotate(7deg)}96%{transform:rotate(0)}}
+.brand h1{font-family:var(--mono);font-size:16px;font-weight:800;letter-spacing:.04em;margin:0;line-height:1.1}
+.brand small{font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);letter-spacing:.18em;text-transform:uppercase}
+.sb-tag{font-family:var(--mono);font-size:10px;color:var(--txt-faint);letter-spacing:.12em;margin:18px 4px 8px;text-transform:uppercase}
+
+nav.toc{display:flex;flex-direction:column;gap:1px;margin-top:4px}
+nav.toc a{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;
+  color:var(--txt-dim);font-family:var(--mono);font-size:12.5px;letter-spacing:.02em;
+  border:1px solid transparent;transition:.15s;
+}
+nav.toc a .num{color:var(--txt-faint);font-size:11px;min-width:20px}
+nav.toc a:hover{background:var(--panel-2);color:var(--txt);text-decoration:none}
+nav.toc a.active{background:rgba(255,59,59,.10);border-color:rgba(255,59,59,.32);color:#ffd9d9}
+nav.toc a.active .num{color:var(--red-soft)}
+
+/* progress meter in sidebar */
+.meter{margin:20px 4px 4px;font-family:var(--mono)}
+.meter .lbl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--txt-faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px}
+.meter .bar{height:8px;border-radius:6px;background:var(--panel-3);overflow:hidden;border:1px solid var(--line)}
+.meter .fill{height:100%;width:0;background:linear-gradient(90deg,#ff4646,#ff8f8f);transition:width .4s ease;box-shadow:0 0 12px rgba(255,80,80,.6)}
+.meter .pct{font-size:12px;color:var(--red-soft);margin-top:6px;text-align:right}
+
+/* ---------- headings ---------- */
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.24em;color:var(--red-soft);text-transform:uppercase;margin:0 0 10px}
+h2.sec{
+  font-family:var(--mono);font-size:25px;font-weight:800;letter-spacing:-.01em;margin:0 0 4px;
+  display:flex;align-items:baseline;gap:14px;scroll-margin-top:24px;
+}
+h2.sec .id{color:var(--red);font-size:15px;font-weight:700}
+.sec-sub{color:var(--txt-dim);margin:0 0 26px;max-width:70ch}
+section{padding-top:44px;border-top:1px dashed var(--line-soft);margin-top:46px}
+section:first-of-type{border-top:0;margin-top:0;padding-top:0}
+h3{font-family:var(--mono);font-size:15.5px;font-weight:700;letter-spacing:.01em;margin:30px 0 10px;color:#eef1f6}
+h3 .hash{color:var(--red);margin-right:8px}
+
+p{margin:12px 0}
+ul,ol{margin:12px 0;padding-left:22px}
+li{margin:6px 0}
+strong{color:#fff;font-weight:600}
+code:not(pre code){
+  font-family:var(--mono);font-size:.86em;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#ffc9c9;
+}
+
+/* ---------- cards / panels ---------- */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--panel-2));
+  border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;
+}
+.card h4{margin:0 0 6px;font-family:var(--mono);font-size:13.5px;letter-spacing:.02em;color:#fff}
+.card p{margin:0;color:var(--txt-dim);font-size:13.5px}
+.card .why{margin-top:9px;font-size:12.5px;color:var(--led-on);font-family:var(--mono)}
+.card .why b{color:var(--led-on);font-weight:700}
+
+.callout{
+  border-left:3px solid var(--red);background:rgba(255,59,59,.06);
+  border-radius:0 var(--r) var(--r) 0;padding:13px 16px;margin:18px 0;
+}
+.callout.cmp{border-left-color:var(--led-amber);background:rgba(246,181,63,.07)}
+.callout.ok{border-left-color:var(--led-on);background:rgba(55,217,154,.06)}
+.callout .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red-soft);display:block;margin-bottom:5px}
+.callout.cmp .tag{color:var(--led-amber)}
+.callout.ok .tag{color:var(--led-on)}
+.callout p{margin:4px 0;font-size:13.5px}
+
+/* ---------- LED status ---------- */
+.led{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
+.led.on{background:var(--led-on);box-shadow:0 0 8px var(--led-on)}
+.led.amber{background:var(--led-amber);box-shadow:0 0 8px var(--led-amber)}
+.led.off{background:var(--led-off)}
+
+/* ---------- code blocks ---------- */
+.code{
+  position:relative;background:#0a0c0f;border:1px solid var(--line);border-radius:var(--r);
+  margin:14px 0;overflow:hidden;
+}
+.code .bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;background:var(--panel-2);border-bottom:1px solid var(--line);
+}
+.code .fname{font-family:var(--mono);font-size:11.5px;color:var(--txt-dim);letter-spacing:.04em}
+.code pre{margin:0;padding:15px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.65;color:#cfd6df}
+.code pre .c{color:var(--txt-faint)}        /* comment */
+.code pre .k{color:#ff7b7b}                  /* keyword */
+.code pre .s{color:#9be39b}                  /* string */
+.code pre .t{color:#7cc4ff}                  /* type/func */
+.code pre .n{color:#f6b53f}                  /* number/const */
+.copy{
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;cursor:pointer;
+  background:var(--panel-3);border:1px solid var(--line);color:var(--txt-dim);
+  border-radius:6px;padding:4px 11px;transition:.15s;
+}
+.copy:hover{background:var(--red-deep);border-color:var(--red);color:#fff}
+.copy.done{background:var(--led-on);border-color:var(--led-on);color:#06231a}
+
+/* ---------- tables ---------- */
+.tbl{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;overflow:hidden;border-radius:var(--r);border:1px solid var(--line)}
+.tbl th{background:var(--panel-2);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-dim);text-align:left;padding:10px 13px;border-bottom:1px solid var(--line)}
+.tbl td{padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top;color:var(--txt-dim)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td code{white-space:nowrap}
+.tbl .m{font-family:var(--mono);color:var(--red-soft);font-size:12px}
+
+/* ---------- architecture diagram ---------- */
+.diagram{background:#0a0c0f;border:1px solid var(--line);border-radius:var(--r);padding:20px;margin:16px 0;overflow-x:auto}
+.diagram svg{display:block;margin:0 auto;min-width:560px}
+
+/* ---------- collapsible ---------- */
+details{border:1px solid var(--line);border-radius:var(--r);margin:12px 0;background:var(--panel)}
+details summary{
+  cursor:pointer;padding:12px 16px;font-family:var(--mono);font-size:13px;color:#eef1f6;
+  list-style:none;display:flex;align-items:center;gap:9px;
+}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"▸";color:var(--red);transition:.15s;font-size:11px}
+details[open] summary::before{transform:rotate(90deg)}
+details .body{padding:0 16px 14px}
+
+/* ---------- roadmap / phases ---------- */
+.phase{
+  border:1px solid var(--line);border-radius:var(--r);margin:14px 0;
+  background:linear-gradient(180deg,var(--panel),var(--panel-2));overflow:hidden;
+}
+.phase>.head{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.phase .pid{font-family:var(--mono);font-size:12px;font-weight:700;color:#06231a;background:var(--red-soft);border-radius:6px;padding:3px 9px}
+.phase .ptitle{font-family:var(--mono);font-weight:700;font-size:14px}
+.phase .pgoal{margin-left:auto;font-size:12px;color:var(--txt-faint);font-family:var(--mono)}
+.phase .body{padding:6px 16px 14px}
+.task{display:flex;align-items:flex-start;gap:11px;padding:8px 4px;border-bottom:1px dashed var(--line-soft)}
+.task:last-child{border-bottom:0}
+.task input{appearance:none;width:18px;height:18px;flex:0 0 auto;margin-top:3px;border:1.5px solid var(--line);border-radius:5px;background:var(--panel-3);cursor:pointer;position:relative;transition:.15s}
+.task input:checked{background:var(--red);border-color:var(--red)}
+.task input:checked::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:800}
+.task label{cursor:pointer;font-size:13.5px;color:var(--txt)}
+.task.done label{color:var(--txt-faint);text-decoration:line-through}
+.task .dod{display:block;font-family:var(--mono);font-size:11.5px;color:var(--led-on);margin-top:2px}
+.task.done .dod{color:var(--txt-faint)}
+
+/* ---------- chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.chip{font-family:var(--mono);font-size:11.5px;padding:4px 11px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--txt-dim)}
+.chip.red{border-color:rgba(255,59,59,.4);color:var(--red-soft);background:rgba(255,59,59,.07)}
+
+.footer{margin-top:60px;padding-top:22px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--txt-faint);letter-spacing:.04em}
+
+/* ---------- mobile / Fold ---------- */
+.menu-btn{display:none}
+@media(max-width:920px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:fixed;z-index:50;width:280px;left:-300px;transition:left .25s;box-shadow:0 0 40px rgba(0,0,0,.6)}
+  .sidebar.open{left:0}
+  .main{padding:74px 18px 110px}
+  .menu-btn{
+    display:flex;align-items:center;gap:8px;position:fixed;top:14px;left:14px;z-index:60;
+    font-family:var(--mono);font-size:12px;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--txt);border-radius:9px;padding:9px 13px;cursor:pointer;backdrop-filter:blur(6px);
+  }
+  .g2,.g3{grid-template-columns:1fr}
+  h2.sec{font-size:21px}
+  .scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40}
+  .scrim.show{display:block}
+}
+</style>
+</head>
+<body>
+
+<button class="menu-btn" id="menuBtn"><span style="color:var(--red)">☰</span> 목차</button>
+<div class="scrim" id="scrim"></div>
+
+<div class="shell">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="phone">☎</div>
+      <div>
+        <h1>RedPhone</h1>
+        <small>WORK ORDER · v1</small>
+      </div>
+    </div>
+    <p style="font-size:11.5px;color:var(--txt-faint);font-family:var(--mono);margin:8px 2px 0;line-height:1.5">
+      빨간전화기(X-PopUp) 클론 · Go · Web UI
+    </p>
+
+    <div class="sb-tag">// SECTIONS</div>
+    <nav class="toc" id="toc">
+      <a href="#s0"><span class="num">00</span> 개요</a>
+      <a href="#s1"><span class="num">01</span> 기술 스택</a>
+      <a href="#s2"><span class="num">02</span> 아키텍처</a>
+      <a href="#s3"><span class="num">03</span> 프로토콜</a>
+      <a href="#s4"><span class="num">04</span> 프로젝트 구조</a>
+      <a href="#s5"><span class="num">05</span> 기능 명세</a>
+      <a href="#s6"><span class="num">06</span> 개발 로드맵</a>
+      <a href="#s7"><span class="num">07</span> CLAUDE.md</a>
+      <a href="#s8"><span class="num">08</span> Todo.md</a>
+      <a href="#s9"><span class="num">09</span> 실행 규율</a>
+    </nav>
+
+    <div class="meter">
+      <div class="lbl"><span>BUILD PROGRESS</span></div>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <div class="pct" id="pct">0 / 0 · 0%</div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- 00 OVERVIEW -->
+    <section id="s0">
+      <p class="kicker">RedPhone Clone · Build Spec</p>
+      <h2 class="sec"><span class="id">00</span> 개요</h2>
+      <p class="sec-sub">
+        2000년대 사내에서 쓰이던 LAN 메신저 <strong>X-PopUp(별명: 빨간전화기)</strong>의 현대식 Go 클론.
+        중앙 서버 없이 같은 네트워크의 PC들이 서로를 자동 발견하고 쪽지·파일을 주고받는다.
+        UI는 네이티브 트레이 대신 <strong>로컬 웹 UI</strong>로 구현하고, 추가로
+        <strong>이미지/텍스트 파일을 로컬 웹서버 URL로 즉시 공유</strong>하는 기능을 넣는다.
+      </p>
+
+      <div class="grid g3">
+        <div class="card"><h4><span class="led on"></span>자동 발견</h4><p>UDP 브로드캐스트로 같은 서브넷의 피어를 서버 없이 탐지. 주기적 HELLO + TTL 만료.</p></div>
+        <div class="card"><h4><span class="led on"></span>쪽지 · 파일</h4><p>피어 간 HTTP로 메시지/파일 직접 전송. 브라우저는 WebSocket으로 실시간 수신.</p></div>
+        <div class="card"><h4><span class="led amber"></span>URL 공유 <span class="chip red" style="font-size:9.5px;padding:1px 7px">신규</span></h4><p>파일을 <code>http://내IP:포트/s/&lt;token&gt;</code>로 발행. 이미지는 인라인, 텍스트는 미리보기.</p></div>
+      </div>
+
+      <h3><span class="hash">#</span>설계 원칙</h3>
+      <ul>
+        <li><strong>의존성 최소화</strong> — 표준 라이브러리 우선. 외부 패키지는 <em>왜 필요한지</em> 정당화될 때만.</li>
+        <li><strong>단일 실행 파일</strong> — 원본처럼 <code>redphone.exe</code> 하나로 무설치 실행. 웹 자산은 <code>embed.FS</code>로 바이너리에 내장.</li>
+        <li><strong>서버리스 P2P</strong> — 중앙 서버 0대. 모든 인스턴스가 곧 서버이자 클라이언트.</li>
+        <li><strong>두 가지 종료 경로</strong> — 콘솔에 <code>exit</code> 입력, 또는 웹 UI의 <strong>종료</strong> 버튼. 둘 다 graceful shutdown.</li>
+        <li><strong>성능</strong> — goroutine + channel 기반, 락 경합 최소화, <code>-race</code> 통과를 DoD에 포함.</li>
+      </ul>
+
+      <div class="callout ok">
+        <span class="tag">// 워크플로우 전제</span>
+        <p>이 문서는 <strong>Claude Code 자율 실행용</strong> 작업 지시서다. <code>CLAUDE.md</code> + <code>Todo.md</code>를 Git에 두고,
+        <strong>이슈 1개 = 프롬프트 1개</strong>, <strong>구현 전 테스트(TDD)</strong>, <strong>태스크마다 Git 체크포인트</strong> 규율을 따른다.</p>
+      </div>
+    </section>
+
+    <!-- 01 STACK -->
+    <section id="s1">
+      <p class="kicker">Dependencies</p>
+      <h2 class="sec"><span class="id">01</span> 기술 스택</h2>
+      <p class="sec-sub">표준 라이브러리로 최대한 끝낸다. 외부 의존성은 단 하나(WebSocket)만 허용하며, 그 이유를 아래에 명시한다.</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <h4>net (UDP) · 표준</h4>
+          <p>피어 발견용 브로드캐스트 송수신. <code>net.ListenPacket("udp4", ...)</code></p>
+          <p class="why"><b>WHY</b> 발견은 단순 데이터그램이면 충분. 외부 라이브러리 불필요.</p>
+        </div>
+        <div class="card">
+          <h4>net/http · 표준</h4>
+          <p>웹 UI 서빙 + 피어 간 메시지/파일 전송 + URL 공유 엔드포인트 전부 담당.</p>
+          <p class="why"><b>WHY</b> 메시징·파일·공유를 하나의 HTTP 평면으로 통일 → 코드/포트 단순화.</p>
+        </div>
+        <div class="card">
+          <h4>embed · 표준</h4>
+          <p><code>//go:embed web/static</code>로 HTML/CSS/JS를 바이너리에 내장.</p>
+          <p class="why"><b>WHY</b> "실행 파일 하나" 원칙. 배포 시 자산 누락 없음.</p>
+        </div>
+        <div class="card">
+          <h4>context / os/signal / sync · 표준</h4>
+          <p>생명주기·graceful shutdown·피어 레지스트리 동시성.</p>
+          <p class="why"><b>WHY</b> exit/버튼/시그널 3개 종료 경로를 하나의 <code>context</code> 취소로 수렴.</p>
+        </div>
+      </div>
+
+      <h3><span class="hash">#</span>유일한 외부 의존성</h3>
+      <div class="card" style="border-color:rgba(255,59,59,.35)">
+        <h4><span class="led amber"></span>github.com/coder/websocket</h4>
+        <p>브라우저 ↔ Go 백엔드 실시간 푸시(피어 갱신, 수신 쪽지/파일 알림)용.</p>
+        <p class="why"><b>WHY</b> 표준 라이브러리에 WS가 없음. <code>coder/websocket</code>은 API가 작고 컨텍스트 친화적이라
+        <code>gorilla/websocket</code>보다 종료 처리가 깔끔. (대안: SSE로 가면 의존성 0이지만 양방향 제어 메시지에서 불리.)</p>
+      </div>
+
+      <div class="callout cmp">
+        <span class="tag">// 언어 비교 노트</span>
+        <p>Node였다면 <code>ws</code> + <code>express</code>를 깔았을 자리를, Go는 <strong>net/http 하나로 정적 서빙·REST·파일 업로드</strong>를
+        다 처리한다. Java로 치면 임베디드 Jetty를 띄우는 셈인데, Go는 그게 표준 라이브러리라 추가 프레임워크가 없다.</p>
+      </div>
+
+      <div class="chips">
+        <span class="chip red">Go 1.22+</span>
+        <span class="chip">stdlib: net · net/http · embed · context · sync · os/signal · encoding/json</span>
+        <span class="chip">dep: coder/websocket</span>
+      </div>
+    </section>
+
+    <!-- 02 ARCHITECTURE -->
+    <section id="s2">
+      <p class="kicker">Components & Concurrency</p>
+      <h2 class="sec"><span class="id">02</span> 아키텍처</h2>
+      <p class="sec-sub">하나의 프로세스 안에서 goroutine들이 <code>context.Context</code> 하나를 공유한다. 종료 신호는 어디서 오든 그 context를 취소해 전부 정리한다.</p>
+
+      <div class="diagram">
+        <svg viewBox="0 0 660 360" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+          <defs>
+            <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#ff6b6b"/>
+            </marker>
+            <style>
+              .box{fill:#13161b;stroke:#272d37;stroke-width:1.2;rx:9}
+              .acc{fill:#191d24;stroke:#7c1d20;stroke-width:1.4}
+              .lbl{fill:#dfe4ec;font-size:12px;font-weight:700}
+              .sub{fill:#9aa3b0;font-size:10px}
+              .wire{stroke:#3a4150;stroke-width:1.3;fill:none}
+              .wred{stroke:#ff6b6b;stroke-width:1.4;fill:none;marker-end:url(#ah)}
+              .tw{fill:#6b7480;font-size:9.5px}
+            </style>
+          </defs>
+
+          <!-- app core -->
+          <rect class="acc" x="240" y="150" width="180" height="60" rx="10"/>
+          <text class="lbl" x="330" y="176" text-anchor="middle">App Core</text>
+          <text class="sub" x="330" y="194" text-anchor="middle">context · errgroup</text>
+
+          <!-- discovery -->
+          <rect class="box" x="30" y="30" width="180" height="58" rx="9"/>
+          <text class="lbl" x="120" y="54" text-anchor="middle">Discovery</text>
+          <text class="sub" x="120" y="72" text-anchor="middle">UDP broadcast/listen</text>
+
+          <!-- peer registry -->
+          <rect class="box" x="30" y="150" width="160" height="58" rx="9"/>
+          <text class="lbl" x="110" y="174" text-anchor="middle">Peer Registry</text>
+          <text class="sub" x="110" y="192" text-anchor="middle">RWMutex map</text>
+
+          <!-- http server -->
+          <rect class="box" x="460" y="30" width="180" height="58" rx="9"/>
+          <text class="lbl" x="550" y="54" text-anchor="middle">HTTP Server</text>
+          <text class="sub" x="550" y="72" text-anchor="middle">UI · API · inbox · /s</text>
+
+          <!-- ws hub -->
+          <rect class="box" x="460" y="150" width="180" height="58" rx="9"/>
+          <text class="lbl" x="550" y="174" text-anchor="middle">WS Hub</text>
+          <text class="sub" x="550" y="192" text-anchor="middle">channel-driven</text>
+
+          <!-- share store -->
+          <rect class="box" x="460" y="270" width="180" height="58" rx="9"/>
+          <text class="lbl" x="550" y="294" text-anchor="middle">Share Store</text>
+          <text class="sub" x="550" y="312" text-anchor="middle">token → file</text>
+
+          <!-- stdin + signal -->
+          <rect class="box" x="30" y="270" width="180" height="58" rx="9"/>
+          <text class="lbl" x="120" y="290" text-anchor="middle">stdin / signal</text>
+          <text class="sub" x="120" y="308" text-anchor="middle">"exit" · SIGINT</text>
+
+          <!-- browser -->
+          <rect class="box" x="248" y="290" width="164" height="44" rx="9" stroke="#37d99a"/>
+          <text class="lbl" x="330" y="316" text-anchor="middle">Browser UI</text>
+
+          <!-- wires -->
+          <path class="wire" d="M210 59 L240 160"/>
+          <path class="wire" d="M210 179 L240 180"/>
+          <path class="wire" d="M420 160 L460 59"/>
+          <path class="wire" d="M420 180 L460 179"/>
+          <path class="wire" d="M420 195 L460 290"/>
+          <path class="wred" d="M210 299 L236 230 L300 210"/>
+          <text class="tw" x="214" y="250">cancel()</text>
+          <path class="wred" d="M548 208 L420 300 L412 312"/>
+          <text class="tw" x="470" y="262">push (ws)</text>
+          <path class="wire" d="M120 88 L110 150"/>
+        </svg>
+      </div>
+
+      <h3><span class="hash">#</span>동시성 모델</h3>
+      <table class="tbl">
+        <thead><tr><th>Goroutine</th><th>역할</th><th>종료 방식</th></tr></thead>
+        <tbody>
+          <tr><td class="m">udpListen</td><td>HELLO/BYE 수신 → 레지스트리 upsert/remove</td><td>conn close + ctx</td></tr>
+          <tr><td class="m">udpBroadcast</td><td>5초 ticker로 HELLO 송신</td><td>ctx.Done()</td></tr>
+          <tr><td class="m">peerSweep</td><td>3초 ticker로 LastSeen 만료 피어 제거</td><td>ctx.Done()</td></tr>
+          <tr><td class="m">httpServe</td><td>UI/API/inbox/공유 서빙</td><td>srv.Shutdown(ctx)</td></tr>
+          <tr><td class="m">wsHub.run</td><td>register/unregister/broadcast 채널 단일 소유</td><td>ctx.Done()</td></tr>
+          <tr><td class="m">stdinRead</td><td>한 줄씩 읽어 <code>exit</code> 감지</td><td>cancel() 호출</td></tr>
+          <tr><td class="m">signalWatch</td><td>SIGINT/SIGTERM 감지</td><td>cancel() 호출</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout cmp">
+        <span class="tag">// 비교: Hub는 왜 락이 아니라 채널인가</span>
+        <p>WS 클라이언트 맵을 <code>sync.Mutex</code>로 보호하는 대신, <strong>맵을 단 하나의 goroutine만 소유</strong>하고
+        register/unregister/broadcast를 채널로 보낸다. "메모리를 공유해 통신하지 말고, 통신해서 메모리를 공유하라"는 Go 관용구.
+        Java의 <code>synchronized</code> 컬렉션이나 C++의 mutex 가드보다 데드락·경합 표면이 작다.</p>
+      </div>
+    </section>
+
+    <!-- 03 PROTOCOL -->
+    <section id="s3">
+      <p class="kicker">Wire Format</p>
+      <h2 class="sec"><span class="id">03</span> 프로토콜 설계</h2>
+      <p class="sec-sub">발견은 UDP, 그 외 모든 것은 HTTP. 포트는 고정 + 자동 폴백.</p>
+
+      <h3><span class="hash">#</span>포트</h3>
+      <table class="tbl">
+        <thead><tr><th>이름</th><th>값</th><th>용도</th></tr></thead>
+        <tbody>
+          <tr><td class="m">DISCOVERY_PORT</td><td><code>17000/udp</code> 고정</td><td>브로드캐스트 송수신 (255.255.255.255)</td></tr>
+          <tr><td class="m">HTTP_PORT</td><td><code>17080</code> 우선, 사용 중이면 OS 자동(:0)</td><td>UI·API·inbox·공유. 실제 포트를 HELLO에 실어 광고</td></tr>
+        </tbody>
+      </table>
+
+      <h3><span class="hash">#</span>Discovery 메시지 (JSON over UDP)</h3>
+      <div class="code">
+        <div class="bar"><span class="fname">udp-payload.json</span><button class="copy" data-copy="c-udp">copy</button></div>
+<pre id="c-udp"><span class="c">// HELLO — 5초마다 브로드캐스트. ip는 신뢰하지 않고 수신 패킷의 src addr를 사용한다.</span>
+{ <span class="s">"v"</span>:<span class="n">1</span>, <span class="s">"type"</span>:<span class="s">"hello"</span>, <span class="s">"id"</span>:<span class="s">"&lt;uuid&gt;"</span>, <span class="s">"name"</span>:<span class="s">"chobocho"</span>, <span class="s">"httpPort"</span>:<span class="n">17080</span>, <span class="s">"ts"</span>:<span class="n">1730000000000</span> }
+
+<span class="c">// BYE — graceful shutdown 직전 1회 송신. 상대는 즉시 목록에서 제거.</span>
+{ <span class="s">"v"</span>:<span class="n">1</span>, <span class="s">"type"</span>:<span class="s">"bye"</span>, <span class="s">"id"</span>:<span class="s">"&lt;uuid&gt;"</span> }</pre>
+      </div>
+      <div class="callout">
+        <span class="tag">// 보안/견고성 규칙</span>
+        <p>자기 자신의 브로드캐스트는 <code>id</code>로 필터링한다. 피어의 <strong>IP는 페이로드가 아니라 UDP 패킷의 출발지 주소</strong>에서 취한다(스푸핑 방지). <code>LastSeen</code>이 15초 넘으면 자동 만료.</p>
+      </div>
+
+      <h3><span class="hash">#</span>HTTP 엔드포인트</h3>
+      <table class="tbl">
+        <thead><tr><th>메서드 · 경로</th><th>설명</th></tr></thead>
+        <tbody>
+          <tr><td class="m">GET /</td><td>웹 UI (embed.FS)</td></tr>
+          <tr><td class="m">GET /ws</td><td>WebSocket 업그레이드 — 피어 갱신/수신 알림 푸시</td></tr>
+          <tr><td class="m">GET /api/peers</td><td>현재 피어 스냅샷(JSON)</td></tr>
+          <tr><td class="m">POST /api/send</td><td><code>{peerId,text}</code> → 상대 <code>/inbox/message</code>로 중계</td></tr>
+          <tr><td class="m">POST /api/sendfile</td><td>multipart → 상대 <code>/inbox/file</code>로 중계</td></tr>
+          <tr><td class="m">POST /api/share</td><td>multipart 업로드 → 토큰 발급, <code>{url,token,kind}</code> 반환</td></tr>
+          <tr><td class="m">GET /s/{token}</td><td>공유 파일 서빙: image→인라인, text→미리보기, 그 외→다운로드</td></tr>
+          <tr><td class="m">GET /api/shares · DELETE /api/share/{token}</td><td>공유 목록 / 회수</td></tr>
+          <tr><td class="m">POST /inbox/message</td><td>피어→나: 쪽지 수신 → WS로 브라우저에 푸시 + 히스토리 저장</td></tr>
+          <tr><td class="m">POST /inbox/file</td><td>피어→나: 파일 수신 → <code>./downloads/</code> 저장 + 알림</td></tr>
+          <tr><td class="m">POST /api/shutdown</td><td><strong>종료 버튼</strong> → ctx 취소(graceful)</td></tr>
+        </tbody>
+      </table>
+
+      <h3><span class="hash">#</span>종료 시퀀스 (3경로 → 1수렴)</h3>
+      <div class="code">
+        <div class="bar"><span class="fname">shutdown-flow</span></div>
+<pre>  exit(stdin) ─┐
+  종료(POST)  ─┼─▶ cancel(ctx) ─▶ ① BYE 브로드캐스트
+  SIGINT      ─┘                  ② srv.Shutdown(timeout 3s)
+                                  ③ ticker/hub 정지, ws 클라이언트 close
+                                  ④ errgroup.Wait() ─▶ exit(0)</pre>
+      </div>
+    </section>
+
+    <!-- 04 STRUCTURE -->
+    <section id="s4">
+      <p class="kicker">Layout</p>
+      <h2 class="sec"><span class="id">04</span> 프로젝트 구조</h2>
+      <p class="sec-sub">표준 <code>cmd/ + internal/</code> 레이아웃. 패키지 경계 = 책임 경계 = 테스트 경계.</p>
+      <div class="code">
+        <div class="bar"><span class="fname">tree</span><button class="copy" data-copy="c-tree">copy</button></div>
+<pre id="c-tree">redphone/
+├─ cmd/redphone/main.go        <span class="c">// 플래그 파싱 → app.Run(ctx)</span>
+├─ internal/
+│  ├─ app/        <span class="c">// 배선·생명주기·graceful shutdown</span>
+│  ├─ discovery/  <span class="c">// UDP HELLO/BYE 인코딩·송수신</span>
+│  ├─ peer/       <span class="c">// Peer 레지스트리 (upsert/expire/snapshot)</span>
+│  ├─ web/        <span class="c">// http 핸들러 + WS hub + embed 자산</span>
+│  │  └─ static/  <span class="c">//   index.html · app.js · style.css</span>
+│  ├─ message/    <span class="c">// 쪽지 send/inbox + 히스토리</span>
+│  ├─ transfer/   <span class="c">// 파일 send/inbox</span>
+│  └─ share/      <span class="c">// 토큰 발급 + content-type 분기 서빙</span>
+├─ downloads/     <span class="c">// 수신 파일 (gitignore)</span>
+├─ CLAUDE.md
+├─ Todo.md
+└─ go.mod</pre>
+      </div>
+    </section>
+
+    <!-- 05 FEATURES -->
+    <section id="s5">
+      <p class="kicker">Functional Spec</p>
+      <h2 class="sec"><span class="id">05</span> 기능 명세</h2>
+      <p class="sec-sub">각 기능은 관찰 가능한 동작과 수용 기준(AC)으로 기술. AI가 테스트를 먼저 쓸 수 있도록 입력/출력을 구체화한다.</p>
+
+      <details open>
+        <summary><span class="led on"></span>F1. 피어 자동 발견</summary>
+        <div class="body">
+          <ul>
+            <li>실행 즉시 HELLO 브로드캐스트 시작, 5초 주기.</li>
+            <li>다른 인스턴스의 HELLO 수신 시 목록에 추가/갱신(이름·IP·httpPort·LastSeen).</li>
+            <li>15초간 HELLO 없으면 오프라인 처리(목록에서 제거).</li>
+            <li><b>AC</b>: 같은 LAN의 두 인스턴스가 ≤6초 내 서로를 목록에 표시. 한쪽 종료 시 ≤2초 내(BYE) 사라짐.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="led on"></span>F2. 쪽지 송수신</summary>
+        <div class="body">
+          <ul>
+            <li>피어 선택 → 텍스트 입력 → 전송. 내 백엔드가 상대 <code>/inbox/message</code>로 POST.</li>
+            <li>수신 측은 WS로 브라우저에 즉시 푸시, 대화 히스토리(메모리, 인스턴스 수명 동안)에 저장.</li>
+            <li><b>AC</b>: A→B 전송 후 B 화면에 ≤1초 내 표시. 상대 오프라인이면 전송 실패를 UI에 명시.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="led on"></span>F3. 파일 전송</summary>
+        <div class="body">
+          <ul>
+            <li>multipart로 상대 <code>/inbox/file</code>에 전송, 수신 측 <code>./downloads/</code> 저장.</li>
+            <li>파일명 충돌 시 <code>name (2).ext</code> 식으로 회피. 경로 탈출(<code>../</code>) 차단.</li>
+            <li><b>AC</b>: 임의 바이너리 왕복 후 SHA-256 동일. 100MB도 메모리 폭증 없이 스트리밍.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="led amber"></span>F4. URL 공유 <span class="chip red" style="font-size:9.5px;padding:1px 7px">신규 추가 기능</span></summary>
+        <div class="body">
+          <p>파일을 전송하지 않고 <strong>링크로 노출</strong>한다. 같은 LAN의 누구든 브라우저로 열 수 있다.</p>
+          <ul>
+            <li>업로드 → 랜덤 토큰(예: 22자 base62) 발급 → <code>http://&lt;myIP&gt;:&lt;port&gt;/s/&lt;token&gt;</code> 반환.</li>
+            <li><b>이미지</b>(png/jpg/gif/webp): <code>&lt;img&gt;</code>로 인라인 렌더. <b>텍스트</b>(txt/md/log/csv/json/소스): 코드 미리보기. <b>그 외</b>: 다운로드.</li>
+            <li>content-type은 확장자 + <code>http.DetectContentType</code> 둘 다로 판정.</li>
+            <li>공유 목록 표시 + 개별 회수(DELETE). 토큰은 추측 불가해야 함.</li>
+            <li><b>AC</b>: 이미지 토큰 GET → <code>Content-Type: image/*</code> + 인라인. 텍스트 토큰 → 이스케이프된 미리보기. 잘못된 토큰 → 404.</li>
+          </ul>
+          <div class="callout">
+            <span class="tag">// 범위 한정</span>
+            <p>공유는 <strong>LAN 한정·휘발성</strong>(인스턴스 종료 시 소멸). 인증은 토큰 비밀성에 의존. 외부망 노출/영속화는 v2 과제로 분리.</p>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="led on"></span>F5. 웹 UI</summary>
+        <div class="body">
+          <ul>
+            <li>실행 시 기본 브라우저로 <code>http://localhost:&lt;port&gt;</code> 자동 오픈(OS별 분기).</li>
+            <li>좌측 피어 목록(온라인 LED), 중앙 대화/입력, 파일 첨부, 공유 패널, 우상단 <strong>종료</strong> 버튼.</li>
+            <li>반응형: 데스크톱·모바일·<strong>Galaxy Fold 펼침/접힘</strong> 모두 대응.</li>
+            <li>자산은 <code>embed.FS</code>. 프레임워크 없이 바닐라 JS + WS.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="led on"></span>F6. 종료 (exit / 버튼)</summary>
+        <div class="body">
+          <ul>
+            <li>콘솔에 <code>exit</code>(개행 포함) 입력 → graceful shutdown.</li>
+            <li>웹 UI <strong>종료</strong> 버튼 → <code>POST /api/shutdown</code> → 동일 경로.</li>
+            <li>둘 다 BYE 브로드캐스트 후 3초 타임아웃 내 서버·goroutine 정리, exit code 0.</li>
+            <li><b>AC</b>: 두 경로 모두 좀비 goroutine 없이 종료(<code>go test -race</code> 통과). 포트 즉시 해제.</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <!-- 06 ROADMAP -->
+    <section id="s6">
+      <p class="kicker">Phased TDD Roadmap</p>
+      <h2 class="sec"><span class="id">06</span> 개발 로드맵</h2>
+      <p class="sec-sub">
+        <strong>이슈 1개 = 프롬프트 1개</strong>. 각 이슈는 <em>테스트 먼저(RED) → 구현(GREEN) → 리팩터</em> 순서로 진행하고,
+        DoD를 만족하면 <strong>Git 체크포인트</strong>(<code>feat(scope): ...</code>)를 찍는다. 체크하면 진행률이 갱신된다.
+      </p>
+
+      <div class="callout cmp">
+        <span class="tag">// 권장: walking skeleton 먼저</span>
+        <p>Phase 0~2를 먼저 끝내 <strong>"두 인스턴스가 서로를 발견하는" 가장 얇은 동작</strong>을 일찍 세워라.
+        완벽한 추상화보다 <em>일단 도는 더러운 버전</em>을 빠르게 만든 뒤, Phase 9에서 단순화·정리에 시간을 확보하는 편이 안전하다.</p>
+      </div>
+
+      <div id="roadmap"><!-- phases injected by JS --></div>
+    </section>
+
+    <!-- 07 CLAUDE.md -->
+    <section id="s7">
+      <p class="kicker">Agent Context</p>
+      <h2 class="sec"><span class="id">07</span> CLAUDE.md 템플릿</h2>
+      <p class="sec-sub">제약뿐 아니라 <strong>왜(why)</strong>·<strong>현재 상태</strong>·<strong>DoD</strong>를 함께 담는다. 프로젝트 루트에 두고 Git으로 동기화.</p>
+      <div class="code">
+        <div class="bar"><span class="fname">CLAUDE.md</span><button class="copy" data-copy="c-claude">copy</button></div>
+<pre id="c-claude"># RedPhone — 빨간전화기(X-PopUp) Go 클론
+
+## 무엇 / 왜
+중앙 서버 없이 같은 LAN의 PC들이 서로를 자동 발견하고 쪽지·파일을 주고받는
+무설치 단일 바이너리 메신저. UI는 로컬 웹. 추가로 파일을 로컬 URL로 공유한다.
+WHY: 사내/가정 LAN에서 "USB로 옮기기"를 대체. 외부 클라우드·서버 의존 0.
+
+## 기술 제약 (지킬 것)
+- Go 1.22+. stdlib 우선. 외부 의존성은 coder/websocket "하나만".
+  WHY: 배포 단순화 + 종료(close) 처리가 깔끔.
+- 웹 자산은 //go:embed 로 내장 → 실행 파일 하나로 동작.
+- 발견=UDP(17000), 그 외 전부 HTTP(17080, 사용중이면 OS자동).
+- 피어 IP는 UDP 패킷 src addr에서 취득(페이로드 신뢰 금지).
+- 파일 저장 시 경로 탈출(../) 차단, 파일명 충돌 회피.
+
+## 동시성 / 종료
+- root context 하나를 모든 goroutine이 공유.
+- 종료 경로 3개(stdin "exit" / POST /api/shutdown / SIGINT) → 모두 cancel(ctx).
+- 종료 시: BYE 브로드캐스트 → srv.Shutdown(3s) → ticker/hub 정지 → Wait → exit 0.
+- WS hub는 mutex 대신 channel로 클라이언트 맵을 단일 goroutine이 소유.
+
+## 작업 규율
+- 이슈 1개 = 프롬프트 1개. Todo.md의 한 항목만 처리.
+- TDD: 실패하는 테스트(RED) 먼저 → 구현(GREEN) → 리팩터.
+- 모든 동시성 코드는 `go test -race` 통과가 DoD.
+- 태스크 완료마다 Git 체크포인트: feat(scope): ... / test(scope): ...
+- 주석은 "왜"를 적는다(무엇은 코드가 말한다).
+
+## 현재 상태
+- [ ] Phase 0 스캐폴딩  ← 여기서 시작
+- (이후 Todo.md 참조, 완료 시 본 섹션 갱신)
+
+## Definition of Done (공통)
+- 해당 패키지 단위 테스트 통과 + `go vet` 무경고.
+- 동시성 관련이면 `-race` 통과.
+- 공개 함수/타입에 의도(why) 주석.
+- 수동 시나리오 1개를 README의 "검증" 절에 기록.</pre>
+      </div>
+    </section>
+
+    <!-- 08 Todo.md -->
+    <section id="s8">
+      <p class="kicker">Issue List</p>
+      <h2 class="sec"><span class="id">08</span> Todo.md 템플릿</h2>
+      <p class="sec-sub">Claude Code에 줄 때 <strong>한 번에 한 이슈</strong>만 지정. 각 이슈에 "이 이슈만 처리하고 멈춰라"를 명시.</p>
+      <div class="code">
+        <div class="bar"><span class="fname">Todo.md</span><button class="copy" data-copy="c-todo">copy</button></div>
+<pre id="c-todo"># RedPhone Todo
+
+> 규칙: 한 번에 이슈 1개. TDD(RED→GREEN→리팩터). 끝나면 Git 체크포인트.
+
+## Phase 0 — 스캐폴딩 / 생명주기
+- [ ] #1 go.mod, cmd/redphone, internal/app 골격. context + signal + stdin "exit"
+      로 즉시 종료되는 빈 앱. 테스트: cancel 시 Run이 ≤100ms 내 반환.
+
+## Phase 1 — Peer 레지스트리
+- [ ] #2 peer.Registry: Upsert/Snapshot/Expire(ttl). 단위 테스트로 만료 검증.
+
+## Phase 2 — Discovery (UDP)
+- [ ] #3 HELLO/BYE JSON encode/decode 테스트.
+- [ ] #4 broadcast(ticker) + listen. src addr에서 IP 취득. 자기 id 필터.
+
+## Phase 3 — HTTP + WS Hub
+- [ ] #5 net/http 서버 + embed 정적 서빙 + 포트 폴백. /api/peers 핸들러 테스트.
+- [ ] #6 channel 기반 WS Hub(register/unregister/broadcast). -race 통과.
+
+## Phase 4 — 메시징
+- [ ] #7 /api/send → 상대 /inbox/message 라운드트립 테스트. 수신 시 WS 푸시.
+
+## Phase 5 — 파일 전송
+- [ ] #8 /api/sendfile → /inbox/file 스트리밍 저장. SHA-256 왕복 동일 + ../ 차단.
+
+## Phase 6 — URL 공유 (신규)
+- [ ] #9 share.Store: 토큰 발급/조회/회수 테스트.
+- [ ] #10 GET /s/{token}: image=인라인, text=미리보기, 그 외=다운로드. 404 테스트.
+
+## Phase 7 — 웹 UI
+- [ ] #11 index.html/app.js/style.css: 피어목록·대화·첨부·공유·종료버튼. 반응형(Fold).
+- [ ] #12 브라우저 자동 오픈(OS 분기).
+
+## Phase 8 — Graceful Shutdown 통합
+- [ ] #13 POST /api/shutdown + BYE 브로드캐스트 + Shutdown(3s). 두 경로 모두 -race.
+
+## Phase 9 — 다듬기
+- [ ] #14 구조화 로깅, 설정 플래그(--name --port), README 검증 절, 동시성 단순화.</pre>
+      </div>
+    </section>
+
+    <!-- 09 EXECUTION -->
+    <section id="s9">
+      <p class="kicker">Claude Code Discipline</p>
+      <h2 class="sec"><span class="id">09</span> 실행 규율</h2>
+      <p class="sec-sub">한 프롬프트에 한 이슈. AI가 범위를 넘지 않게 매번 경계를 못 박는다.</p>
+
+      <h3><span class="hash">#</span>프롬프트 골격</h3>
+      <div class="code">
+        <div class="bar"><span class="fname">prompt-template</span><button class="copy" data-copy="c-prompt">copy</button></div>
+<pre id="c-prompt">Todo.md의 #<span class="n">N</span> 이슈만 처리해. 다른 이슈는 건드리지 마.
+
+1) 먼저 실패하는 테스트를 작성(RED). 무엇을 검증하는지 주석으로.
+2) 최소 구현으로 통과시켜(GREEN).
+3) 리팩터: 중복 제거, 이름 정리. 동시성이면 `go test -race`.
+4) `go vet ./...` 무경고 확인.
+5) 끝나면 멈추고, 변경 요약 + 제안 커밋 메시지(feat/test(scope): ...)를 출력.
+
+CLAUDE.md의 제약과 DoD를 반드시 지켜. 범위를 넘기면 안 돼.</pre>
+      </div>
+
+      <h3><span class="hash">#</span>Windows PowerShell · settings.json</h3>
+      <div class="code">
+        <div class="bar"><span class="fname">.claude/settings.json</span><button class="copy" data-copy="c-settings">copy</button></div>
+<pre id="c-settings"><span class="c">// 개인 프로젝트: 권한 프롬프트 최소화</span>
+{
+  <span class="s">"permissions"</span>: { <span class="s">"defaultMode"</span>: <span class="s">"bypassPermissions"</span> },
+  <span class="s">"env"</span>: { <span class="s">"GOFLAGS"</span>: <span class="s">"-count=1"</span> }
+}
+<span class="c">// 회사 레포라면 acceptEdits + allowlist(예: Bash(go test:*), Bash(go vet:*))로 좁혀라.</span></pre>
+      </div>
+
+      <div class="callout ok">
+        <span class="tag">// 검증 스모크 테스트</span>
+        <p>빌드 후 같은 PC에서 포트만 바꿔 두 인스턴스를 띄워(<code>--port 17080</code>, <code>--port 17081</code>) 상호 발견·쪽지·공유 링크를 확인.
+        그다음 다른 PC로 LAN 검증. 마지막에 <code>exit</code>와 종료 버튼 양쪽으로 정상 종료를 확인한다.</p>
+      </div>
+
+      <div class="footer">
+        RedPhone Work Order · Go · LAN P2P · single binary &nbsp;//&nbsp; 이슈 1개 = 프롬프트 1개 · TDD · Git checkpoint · DoD
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* ============================ DATA ============================ */
+const PHASES = [
+  {id:"P0", title:"스캐폴딩 / 생명주기", goal:"빈 앱 종료까지", tasks:[
+    {t:"#1 go.mod + cmd/redphone + internal/app 골격, context+signal+stdin \"exit\"로 종료되는 빈 앱", dod:"DoD: cancel 시 Run이 ≤100ms 반환 (테스트)"},
+  ]},
+  {id:"P1", title:"Peer 레지스트리", goal:"순수 로직", tasks:[
+    {t:"#2 peer.Registry: Upsert / Snapshot / Expire(ttl)", dod:"DoD: 만료·중복 upsert 단위 테스트 통과"},
+  ]},
+  {id:"P2", title:"Discovery (UDP)", goal:"서로 발견", tasks:[
+    {t:"#3 HELLO/BYE JSON encode·decode", dod:"DoD: 라운드트립 테스트"},
+    {t:"#4 broadcast(ticker) + listen, src addr에서 IP 취득, 자기 id 필터", dod:"DoD: 두 인스턴스 ≤6초 상호 발견"},
+  ]},
+  {id:"P3", title:"HTTP + WS Hub", goal:"통신 평면", tasks:[
+    {t:"#5 net/http + embed 정적 서빙 + 포트 폴백, /api/peers 핸들러", dod:"DoD: httptest 핸들러 테스트"},
+    {t:"#6 channel 기반 WS Hub (register/unregister/broadcast)", dod:"DoD: go test -race 통과"},
+  ]},
+  {id:"P4", title:"메시징", goal:"쪽지 왕복", tasks:[
+    {t:"#7 /api/send → 상대 /inbox/message 중계, 수신 시 WS 푸시", dod:"DoD: A→B 라운드트립 + 오프라인 실패 표시"},
+  ]},
+  {id:"P5", title:"파일 전송", goal:"바이너리 왕복", tasks:[
+    {t:"#8 /api/sendfile → /inbox/file 스트리밍 저장, 충돌 회피, ../ 차단", dod:"DoD: SHA-256 왕복 동일"},
+  ]},
+  {id:"P6", title:"URL 공유 (신규)", goal:"링크로 노출", tasks:[
+    {t:"#9 share.Store: 토큰 발급/조회/회수", dod:"DoD: 발급·회수·미존재 테스트"},
+    {t:"#10 GET /s/{token}: image=인라인 · text=미리보기 · 그 외=다운로드", dod:"DoD: content-type 분기 + 404 테스트"},
+  ]},
+  {id:"P7", title:"웹 UI", goal:"화면", tasks:[
+    {t:"#11 index/app.js/style.css: 피어·대화·첨부·공유·종료버튼, 반응형(Fold)", dod:"DoD: 두 인스턴스 수동 시나리오"},
+    {t:"#12 브라우저 자동 오픈(OS 분기)", dod:"DoD: Win/mac/Linux 분기 확인"},
+  ]},
+  {id:"P8", title:"Graceful Shutdown 통합", goal:"3경로 수렴", tasks:[
+    {t:"#13 POST /api/shutdown + BYE 브로드캐스트 + Shutdown(3s)", dod:"DoD: exit·버튼 두 경로 -race 통과, 포트 즉시 해제"},
+  ]},
+  {id:"P9", title:"다듬기", goal:"정리·단순화", tasks:[
+    {t:"#14 구조화 로깅 · 플래그(--name --port) · README 검증 절 · 동시성 단순화", dod:"DoD: go vet 무경고, README 갱신"},
+  ]},
+];
+
+/* ===================== storage (preview-safe) ===================== */
+/* claude.ai 프리뷰에서 localStorage 접근이 막혀도 try/catch로 무해하게 폴백.
+   로컬로 다운로드해 열면 체크 상태가 영속 저장된다. */
+const mem = {};
+const store = {
+  get(k){ try{ const v=localStorage.getItem(k); return v==null?(k in mem?mem[k]:null):JSON.parse(v);}catch(e){return k in mem?mem[k]:null;} },
+  set(k,v){ mem[k]=v; try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+
+/* ===================== build roadmap ===================== */
+const root = document.getElementById('roadmap');
+let idx=0;
+PHASES.forEach(p=>{
+  const ph=document.createElement('div'); ph.className='phase';
+  ph.innerHTML=`<div class="head"><span class="pid">${p.id}</span><span class="ptitle">${p.title}</span><span class="pgoal">→ ${p.goal}</span></div>`;
+  const body=document.createElement('div'); body.className='body';
+  p.tasks.forEach(tk=>{
+    const id='task_'+(idx++);
+    const checked=store.get(id)===true;
+    const row=document.createElement('div'); row.className='task'+(checked?' done':'');
+    row.innerHTML=`<input type="checkbox" id="${id}" ${checked?'checked':''}/>
+      <label for="${id}">${tk.t}<span class="dod">${tk.dod}</span></label>`;
+    body.appendChild(row);
+  });
+  ph.appendChild(body); root.appendChild(ph);
+});
+
+/* progress */
+const boxes=[...document.querySelectorAll('.task input')];
+function refresh(){
+  const done=boxes.filter(b=>b.checked).length, total=boxes.length;
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('fill').style.width=pct+'%';
+  document.getElementById('pct').textContent=`${done} / ${total} · ${pct}%`;
+}
+boxes.forEach(b=>b.addEventListener('change',()=>{
+  store.set(b.id,b.checked);
+  b.closest('.task').classList.toggle('done',b.checked);
+  refresh();
+}));
+refresh();
+
+/* ===================== copy buttons ===================== */
+document.querySelectorAll('.copy').forEach(btn=>{
+  btn.addEventListener('click',async()=>{
+    const el=document.getElementById(btn.dataset.copy);
+    const text=el.innerText;
+    try{ await navigator.clipboard.writeText(text); }
+    catch(e){ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(_){} ta.remove(); }
+    const old=btn.textContent; btn.textContent='copied ✓'; btn.classList.add('done');
+    setTimeout(()=>{btn.textContent=old;btn.classList.remove('done');},1300);
+  });
+});
+
+/* ===================== nav: active + mobile ===================== */
+const links=[...document.querySelectorAll('nav.toc a')];
+const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){
+    const id='#'+e.target.id;
+    links.forEach(l=>l.classList.toggle('active',l.getAttribute('href')===id));
+  }});
+},{rootMargin:'-30% 0px -65% 0px'});
+secs.forEach(s=>s&&io.observe(s));
+
+const sb=document.getElementById('sidebar'), scrim=document.getElementById('scrim');
+document.getElementById('menuBtn').addEventListener('click',()=>{sb.classList.toggle('open');scrim.classList.toggle('show');});
+scrim.addEventListener('click',()=>{sb.classList.remove('open');scrim.classList.remove('show');});
+links.forEach(l=>l.addEventListener('click',()=>{sb.classList.remove('open');scrim.classList.remove('show');}));
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RedPhone · 작업 히스토리</title>
+<style>
+:root{
+  --bg:#0c0e11; --panel:#13161b; --panel-2:#191d24; --line:#272d37;
+  --txt:#dfe4ec; --txt-dim:#9aa3b0; --txt-faint:#6b7480;
+  --red:#ff3b3b; --red-soft:#ff6b6b; --led-on:#37d99a; --led-amber:#f6b53f;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --kr:'Pretendard',-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--kr);
+  font-size:15px;line-height:1.72;
+  background-image:radial-gradient(900px 500px at 12% -8%,rgba(255,59,59,.10),transparent 60%);
+  background-attachment:fixed;}
+.wrap{max-width:880px;margin:0 auto;padding:48px 28px 120px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.phone{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:21px;
+  background:linear-gradient(150deg,#ff4646,#b81f22);
+  box-shadow:0 0 0 1px rgba(255,107,107,.5),0 8px 24px rgba(255,59,59,.28);}
+h1{font-family:var(--mono);font-size:20px;font-weight:800;margin:0;letter-spacing:.02em}
+.sub{font-family:var(--mono);font-size:11px;color:var(--txt-faint);letter-spacing:.16em;text-transform:uppercase}
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.24em;color:var(--red-soft);text-transform:uppercase;margin:34px 0 8px}
+
+/* progress */
+.meter{font-family:var(--mono);margin:18px 0 8px}
+.meter .bar{height:9px;border-radius:6px;background:#20252e;overflow:hidden;border:1px solid var(--line)}
+.meter .fill{height:100%;background:linear-gradient(90deg,#ff4646,#ff8f8f);box-shadow:0 0 12px rgba(255,80,80,.6)}
+.meter .pct{font-size:12px;color:var(--red-soft);margin-top:6px}
+
+/* timeline */
+.entry{border-left:2px solid var(--line);padding:0 0 6px 20px;margin:0 0 4px 6px;position:relative}
+.entry::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;
+  background:var(--led-on);box-shadow:0 0 8px var(--led-on)}
+.entry.amber::before{background:var(--led-amber);box-shadow:0 0 8px var(--led-amber)}
+.entry.red::before{background:var(--red);box-shadow:0 0 8px var(--red)}
+.entry .when{font-family:var(--mono);font-size:11px;color:var(--txt-faint);letter-spacing:.06em}
+.entry h3{font-family:var(--mono);font-size:15px;margin:3px 0 6px;color:#eef1f6}
+.entry .tag{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:2px 9px;border-radius:20px;
+  border:1px solid rgba(55,217,154,.4);color:var(--led-on);background:rgba(55,217,154,.08);margin-left:8px}
+.entry ul{margin:6px 0;padding-left:20px}
+.entry li{margin:4px 0;font-size:14px;color:var(--txt-dim)}
+.entry code{font-family:var(--mono);font-size:.85em;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:5px;padding:1px 6px;color:#ffc9c9}
+.commit{font-family:var(--mono);font-size:11.5px;color:var(--led-on);margin-top:6px}
+.footer{margin-top:50px;padding-top:20px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:11px;color:var(--txt-faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="phone">☎</div>
+    <div>
+      <h1>RedPhone 작업 히스토리</h1>
+      <div class="sub">BUILD LOG · 한국어 진행 기록</div>
+    </div>
+  </div>
+
+  <div class="meter">
+    <div class="bar"><div class="fill" id="fill" style="width:0%"></div></div>
+    <div class="pct" id="pct">0 / 14 이슈 · 0%</div>
+  </div>
+
+  <div class="kicker">// TIMELINE (최신이 위)</div>
+  <div id="log">
+
+    <div class="entry amber">
+      <div class="when">2026-05-30 · 세션 시작</div>
+      <h3>프로젝트 기반 세팅 <span class="tag" style="border-color:rgba(246,181,63,.4);color:var(--led-amber);background:rgba(246,181,63,.08)">진행중</span></h3>
+      <ul>
+        <li><code>red-phone.html</code> 작업 지시서 분석 — 9개 Phase / 14개 이슈 파악.</li>
+        <li>디렉터리 골격 생성: <code>cmd/redphone</code>, <code>internal/{app,discovery,peer,web,message,transfer,share}</code>.</li>
+        <li><code>go.mod</code> 초기화 (<code>github.com/chobocho/redphone</code>, Go 1.25.1).</li>
+        <li><code>CLAUDE.md</code>, <code>Todo.md</code>, <code>.gitignore</code> 작성.</li>
+        <li>작업 규율 확정: 이슈 1개 = 커밋 1개, TDD(RED→GREEN→리팩터), <code>go test -race</code>.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="footer">RedPhone · Go · LAN P2P · single binary // 매 턴 종료 시 본 파일을 한국어로 갱신</div>
+</div>
+</body>
+</html>
