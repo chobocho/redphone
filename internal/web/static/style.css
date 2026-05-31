@@ -82,6 +82,10 @@ body{
   color:var(--txt-dim);padding:3px 8px;border-radius:7px;cursor:pointer;font-size:10px;letter-spacing:.04em;text-transform:none}
 .scan:hover{background:var(--red-deep);border-color:var(--red);color:#fff}
 .ipbox{margin-top:2px}
+.myip{display:flex;align-items:center;gap:6px;margin-bottom:9px;font-family:var(--mono);font-size:11px;color:var(--txt-dim)}
+.myip code{background:var(--panel-3);border:1px solid var(--line);border-radius:5px;padding:1px 7px;color:var(--red-soft);font-size:12px}
+.myip .copy{margin-left:auto;cursor:pointer;color:var(--txt-faint);border:0;background:0;font-size:10.5px;font-family:var(--mono)}
+.myip .copy:hover{color:var(--red-soft)}
 .iprow{display:flex;gap:6px}
 .iprow input{flex:1;min-width:0;background:var(--panel-3);border:1px solid var(--line);color:var(--txt);
   border-radius:9px;padding:8px 10px;font-size:13px;font-family:var(--mono);outline:none}

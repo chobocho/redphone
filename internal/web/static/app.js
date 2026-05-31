@@ -214,6 +214,20 @@
     }
   }
 
+  /* ---------------- self identity ---------------- */
+  async function loadSelf() {
+    try {
+      const res = await fetch("/api/self");
+      const d = await jsonOrNull(res);
+      if (!d) return;
+      if (d.name) $("selfName").textContent = d.name;
+      if (d.ip) {
+        $("myipVal").textContent = d.ip;
+        $("myip").hidden = false;
+      }
+    } catch { /* 무시 */ }
+  }
+
   /* ---------------- friend IP management ---------------- */
   async function loadTargets() {
     try {
@@ -349,11 +363,13 @@
     $("ipAddBtn").addEventListener("click", () => addTarget($("ipInput").value));
     $("ipInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addTarget($("ipInput").value); } });
     $("scanBtn").addEventListener("click", scanLAN);
+    $("myipCopy").addEventListener("click", () => copy($("myipVal").textContent));
 
     // 초기 데이터
     fetch("/api/peers").then(jsonOrNull).then((p) => { state.peers = p || []; renderPeers(); });
     loadShares();
     loadTargets();
+    loadSelf();
     connectWS();
   }
   document.addEventListener("DOMContentLoaded", init);

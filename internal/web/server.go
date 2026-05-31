@@ -28,14 +28,14 @@ type Options struct {
 	SelfID      string
 	Name        string
 	History     *message.History
-	Client      *http.Client // 평문 HTTP(파일 본문 PUT 등)용; nil이면 http.DefaultClient
+	Client      *http.Client                 // 평문 HTTP(파일 본문 PUT 등)용; nil이면 http.DefaultClient
 	PeerTLS     func(fp string) *http.Client // 피어로 TLS 송신할 때 핀닝된 클라이언트
-	NowMs       func() int64 // 테스트 주입용; nil이면 wall clock
-	DownloadDir string       // 수신 파일 저장 위치; ""이면 "downloads"
-	Shares      *share.Store // URL 공유 저장소; nil이면 공유 비활성
-	ShareHost   string       // 공유 URL의 host:port 강제값; ""이면 r.Host
-	Shutdown    func()       // 종료 버튼 콜백(보통 root ctx의 cancel)
-	Targets     PeerControl  // 친구 IP 수동 관리 + 전체 스캔; nil이면 비활성
+	NowMs       func() int64                 // 테스트 주입용; nil이면 wall clock
+	DownloadDir string                       // 수신 파일 저장 위치; ""이면 "downloads"
+	Shares      *share.Store                 // URL 공유 저장소; nil이면 공유 비활성
+	ShareHost   string                       // 공유 URL의 host:port 강제값; ""이면 r.Host
+	Shutdown    func()                       // 종료 버튼 콜백(보통 root ctx의 cancel)
+	Targets     PeerControl                  // 친구 IP 수동 관리 + 전체 스캔; nil이면 비활성
 }
 
 // PeerControl is the discovery side of manual friend-IP management, kept as an
@@ -79,6 +79,7 @@ func (s *Server) Hub() *Hub { return s.hub }
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/peers", s.handlePeers)
+	mux.HandleFunc("GET /api/self", s.handleSelf)
 	mux.HandleFunc("GET /api/history", s.handleHistory)
 	mux.HandleFunc("POST /api/send", s.handleSend)
 	mux.HandleFunc("POST /api/broadcast", s.handleBroadcast)
@@ -124,6 +125,40 @@ func (s *Server) handleShutdown(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handlePeers(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, s.opt.Reg.Snapshot())
+}
+
+// handleSelf reports this instance's identity and its LAN IP so the user can
+// tell a friend which IP to add (UI는 localhost가 아니라 이 IP를 보여준다).
+func (s *Server) handleSelf(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id":   s.opt.SelfID,
+		"name": s.opt.Name,
+		"ip":   localIP(),
+	})
+}
+
+// localIP returns the primary LAN IPv4 chosen by the routing table, falling back
+// to the first non-loopback IPv4 on any interface. 알 수 없으면 빈 문자열.
+//
+// WHY: UDP Dial은 패킷을 보내지 않고 기본 경로의 출발지 IP만 고른다 — 인터넷이
+// 없어도(고립 LAN) 폴백이 인터페이스에서 사설 IP를 찾아낸다.
+func localIP() string {
+	if c, err := net.Dial("udp4", "8.8.8.8:80"); err == nil {
+		defer c.Close()
+		if ua, ok := c.LocalAddr().(*net.UDPAddr); ok && ua.IP != nil {
+			return ua.IP.String()
+		}
+	}
+	if addrs, err := net.InterfaceAddrs(); err == nil {
+		for _, a := range addrs {
+			if n, ok := a.(*net.IPNet); ok {
+				if ip4 := n.IP.To4(); ip4 != nil && !ip4.IsLoopback() {
+					return ip4.String()
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // staticHandler serves the embedded web assets at the root.

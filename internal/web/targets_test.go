@@ -40,8 +40,8 @@ func (f *fakeTargets) RemoveTarget(ip string) {
 	}
 	f.ips = out
 }
-func (f *fakeTargets) Targets() []string        { return f.ips }
-func (f *fakeTargets) ScanLAN() (int, error)    { return f.scanN, f.scanErr }
+func (f *fakeTargets) Targets() []string     { return f.ips }
+func (f *fakeTargets) ScanLAN() (int, error) { return f.scanN, f.scanErr }
 
 func targetServer(ft *fakeTargets) *Server {
 	return New(Options{Reg: peer.NewRegistry(), SelfID: "self", Name: "tester", Targets: ft})
@@ -136,6 +136,24 @@ func TestScan(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"sent":42`) {
 		t.Errorf("body = %s, want sent:42", rec.Body.String())
+	}
+}
+
+// TestSelfReportsName는 /api/self가 이름(과 IP 키)을 돌려주는지 본다.
+// IP는 환경에 따라 빈 값일 수 있으므로 이름과 200만 단정한다.
+func TestSelfReportsName(t *testing.T) {
+	rec := doReq(targetServer(&fakeTargets{}), http.MethodGet, "/api/self", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	var got struct {
+		ID, Name, IP string
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("bad json: %v (%s)", err, rec.Body)
+	}
+	if got.Name != "tester" {
+		t.Errorf("name = %q, want tester", got.Name)
 	}
 }
 
