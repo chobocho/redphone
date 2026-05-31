@@ -19,8 +19,10 @@ body{
   font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;
   background-image:radial-gradient(900px 500px at 12% -8%,rgba(255,59,59,.10),transparent 60%);
   background-attachment:fixed;
+  min-height:100vh;
+  min-height:100dvh;
 }
-.app{display:grid;grid-template-columns:300px 1fr;height:100vh}
+.app{display:grid;grid-template-columns:300px 1fr;height:100vh;height:100dvh;min-height:0}
 
 /* ---------- sidebar ---------- */
 .side{border-right:1px solid var(--line);background:rgba(15,18,23,.86);
@@ -101,14 +103,14 @@ body{
 .targets li .rm:hover{color:var(--red)}
 
 /* ---------- main / chat ---------- */
-.main{display:flex;flex-direction:column;min-width:0}
+.main{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
 .menu{display:none}
 .chat-head{display:flex;align-items:center;gap:9px;padding:15px 20px;border-bottom:1px solid var(--line);
   background:rgba(19,22,27,.6)}
 .chat-head strong{font-size:15px}
 .chat-head .peer-ip{font-family:var(--mono);font-size:11px;color:var(--txt-faint);margin-left:auto}
 
-.log{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px}
+.log{flex:1;min-height:0;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px}
 .placeholder{margin:auto;text-align:center;color:var(--txt-faint)}
 .placeholder .big{font-size:54px;opacity:.5}
 .placeholder p{font-family:var(--mono);font-size:12.5px;line-height:1.9}
@@ -150,7 +152,7 @@ body{
 /* ---------- responsive: tablet / mobile / Galaxy Fold ---------- */
 @media(max-width:780px){
   .app{grid-template-columns:1fr}
-  .side{position:fixed;z-index:50;width:290px;max-width:86vw;height:100vh;left:-320px;transition:left .22s;
+  .side{position:fixed;z-index:50;width:290px;max-width:86vw;height:100vh;height:100dvh;left:-320px;transition:left .22s;
     box-shadow:0 0 50px rgba(0,0,0,.6)}
   .side.open{left:0}
   .menu{display:inline-block;position:absolute;top:12px;left:12px;z-index:30;font-size:16px;
@@ -160,6 +162,7 @@ body{
   .scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40}
   .scrim.show{display:block}
   .msg{max-width:86%}
+  .composer{padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px))}
 }
 /* Galaxy Fold (접힘) — 280px 폭에서도 깨지지 않게 */
 @media(max-width:380px){
