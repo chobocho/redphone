@@ -12,3 +12,6 @@
 # Go
 *.test
 *.out
+
+# Setting
+peers.json

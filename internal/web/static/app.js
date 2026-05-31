@@ -9,6 +9,7 @@
     selected: null,       // peer id
     convos: new Map(),    // peerId -> [{dir,text,ts,from}]
     unread: new Map(),    // peerId -> count
+    selfIP: null,         // 내 LAN IP(공유 링크 host용; localhost 회피)
   };
 
   /* ---------------- helpers ---------------- */
@@ -174,6 +175,16 @@
     } catch (err) { toast("공유 오류: " + err.message); }
   }
 
+  // 공유 링크 host: 브라우저 주소가 localhost면 다른 기기에서 못 여니, 가능하면
+  // 내 LAN IP로 바꾼다. selfIP가 없으면(조회 실패) 원래 origin으로 폴백.
+  function shareBase() {
+    if (state.selfIP) {
+      const port = location.port ? `:${location.port}` : "";
+      return `${location.protocol}//${state.selfIP}${port}`;
+    }
+    return location.origin;
+  }
+
   async function loadShares() {
     try {
       const res = await fetch("/api/shares");
@@ -181,7 +192,7 @@
       const ul = $("shares");
       ul.innerHTML = "";
       for (const s of list) {
-        const url = `${location.origin}/s/${s.token}`;
+        const url = `${shareBase()}/s/${s.token}`;
         const li = document.createElement("li");
         li.innerHTML =
           `<div class="top"><span class="k ${esc(s.kind)}">${esc(s.kind)}</span>` +
@@ -222,6 +233,7 @@
       if (!d) return;
       if (d.name) $("selfName").textContent = d.name;
       if (d.ip) {
+        state.selfIP = d.ip;
         $("myipVal").textContent = d.ip;
         $("myip").hidden = false;
       }
@@ -365,11 +377,10 @@
     $("scanBtn").addEventListener("click", scanLAN);
     $("myipCopy").addEventListener("click", () => copy($("myipVal").textContent));
 
-    // 초기 데이터
+    // 초기 데이터 — selfIP를 먼저 받은 뒤 공유 목록을 그려 링크 host를 LAN IP로.
     fetch("/api/peers").then(jsonOrNull).then((p) => { state.peers = p || []; renderPeers(); });
-    loadShares();
+    loadSelf().then(loadShares);
     loadTargets();
-    loadSelf();
     connectWS();
   }
   document.addEventListener("DOMContentLoaded", init);
