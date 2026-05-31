@@ -214,6 +214,17 @@
       const div = document.createElement("div");
       div.className = `msg ${m.dir}`;
 
+      const actions = document.createElement("div");
+      actions.className = "msg-actions";
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "msg-copy";
+      copyBtn.type = "button";
+      copyBtn.title = "메시지 복사";
+      copyBtn.textContent = "복사";
+      copyBtn.addEventListener("click", () => copy(m.text || ""));
+      actions.appendChild(copyBtn);
+      div.appendChild(actions);
+
       const body = document.createElement("div");
       body.className = "msg-text";
       appendLinkedText(body, m.text || "");
