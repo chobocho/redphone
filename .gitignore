@@ -13,6 +13,7 @@
 *.test
 *.out
 
-# Setting
+# Runtime state
 peers.json
+/redphone.db
 *.db

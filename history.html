@@ -3,238 +3,121 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>RedPhone · 작업 히스토리</title>
+<title>RedPhone History</title>
 <style>
 :root{
-  --bg:#0c0e11; --panel:#13161b; --panel-2:#191d24; --line:#272d37;
-  --txt:#dfe4ec; --txt-dim:#9aa3b0; --txt-faint:#6b7480;
-  --red:#ff3b3b; --red-soft:#ff6b6b; --on:#37d99a; --amber:#f6b53f;
-  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
-  --kr:'Pretendard',-apple-system,system-ui,sans-serif;
+  --bg:#0f1318;
+  --panel:#171d25;
+  --line:#2b3440;
+  --txt:#e7edf5;
+  --txt-dim:#9fabb9;
+  --red:#ef5252;
+  --green:#29c37a;
+  --amber:#d9a233;
+  --mono:ui-monospace,"JetBrains Mono",Consolas,monospace;
+  --sans:-apple-system,"Pretendard",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--kr);
-  font-size:15px;line-height:1.72;
-  background-image:radial-gradient(900px 500px at 12% -8%,rgba(255,59,59,.10),transparent 60%);
-  background-attachment:fixed;}
-.wrap{max-width:880px;margin:0 auto;padding:48px 28px 120px}
-.brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
-.phone{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:21px;
-  background:linear-gradient(150deg,#ff4646,#b81f22);
-  box-shadow:0 0 0 1px rgba(255,107,107,.5),0 8px 24px rgba(255,59,59,.28);}
-h1{font-family:var(--mono);font-size:20px;font-weight:800;margin:0;letter-spacing:.02em}
-.sub{font-family:var(--mono);font-size:11px;color:var(--txt-faint);letter-spacing:.16em;text-transform:uppercase}
-.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.24em;color:var(--red-soft);text-transform:uppercase;margin:34px 0 8px}
-.meter{font-family:var(--mono);margin:18px 0 8px}
-.meter .bar{height:9px;border-radius:6px;background:#20252e;overflow:hidden;border:1px solid var(--line)}
-.meter .fill{height:100%;background:linear-gradient(90deg,#ff4646,#ff8f8f);box-shadow:0 0 12px rgba(255,80,80,.6)}
-.meter .pct{font-size:12px;color:var(--red-soft);margin-top:6px}
-.note{background:rgba(246,181,63,.07);border-left:3px solid var(--amber);border-radius:0 10px 10px 0;
-  padding:12px 15px;margin:16px 0;font-size:13.5px}
-.note b{color:var(--amber)}
-.entry{border-left:2px solid var(--line);padding:0 0 10px 20px;margin:0 0 4px 6px;position:relative}
-.entry::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;
-  background:var(--on);box-shadow:0 0 8px var(--on)}
-.entry.amber::before{background:var(--amber);box-shadow:0 0 8px var(--amber)}
-.entry .when{font-family:var(--mono);font-size:11px;color:var(--txt-faint);letter-spacing:.06em}
-.entry h3{font-family:var(--mono);font-size:14.5px;margin:3px 0 6px;color:#eef1f6}
-.entry .tag{display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:20px;
-  border:1px solid rgba(55,217,154,.4);color:var(--on);background:rgba(55,217,154,.08);margin-left:8px}
-.entry ul{margin:6px 0;padding-left:20px}
-.entry li{margin:3px 0;font-size:13.5px;color:var(--txt-dim)}
-.entry code{font-family:var(--mono);font-size:.84em;background:var(--panel-2);border:1px solid var(--line);
-  border-radius:5px;padding:1px 6px;color:#ffc9c9}
-.commit{font-family:var(--mono);font-size:11px;color:var(--on);margin-top:5px}
-.footer{margin-top:50px;padding-top:20px;border-top:1px solid var(--line);
-  font-family:var(--mono);font-size:11px;color:var(--txt-faint)}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.7 var(--sans)}
+.wrap{max-width:920px;margin:0 auto;padding:40px 24px 80px}
+.head{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+.logo{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(150deg,#ff6767,#b92a2a);font:800 15px var(--mono)}
+h1{margin:0;font:800 22px var(--mono)}
+.sub{color:var(--txt-dim);font:12px var(--mono)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-top:16px}
+.summary{margin:0;color:var(--txt-dim)}
+.timeline{margin-top:20px;border-left:2px solid var(--line);padding-left:18px}
+.item{position:relative;padding:0 0 18px 0}
+.item::before{content:"";position:absolute;left:-26px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--green)}
+.item.warn::before{background:var(--amber)}
+.date{color:var(--txt-dim);font:12px var(--mono)}
+.title{margin:4px 0 8px;font:700 16px var(--mono)}
+ul{margin:0;padding-left:18px}
+li{margin:4px 0}
+code{font:0.9em var(--mono);background:#11161c;border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.foot{margin-top:24px;color:var(--txt-dim);font:12px var(--mono)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">
-    <div class="phone">☎</div>
+  <div class="head">
+    <div class="logo">RP</div>
     <div>
-      <h1>RedPhone 작업 히스토리</h1>
-      <div class="sub">BUILD LOG · 한국어 진행 기록</div>
+      <h1>RedPhone History</h1>
+      <div class="sub">implementation notes and feature log</div>
     </div>
   </div>
 
-  <div class="meter">
-    <div class="bar"><div class="fill" style="width:100%"></div></div>
-    <div class="pct">14 / 14 이슈 · 100% — Phase 0~9 + 보안 + Phase 11(친구 IP 발견) 완료</div>
+  <div class="card">
+    <p class="summary">
+      RedPhone은 LAN P2P 메신저로 시작했고, 현재는 메시지/파일/공유 링크/친구 IP 관리/UI 테마까지 포함한 단일 바이너리 앱으로 정리되었습니다.
+    </p>
   </div>
 
-  <div class="note">
-    <b>요약:</b> red-phone.html 작업 지시서대로 <b>RedPhone (빨간전화기 Go 클론)</b>을
-    TDD(RED→GREEN→리팩터)로 9개 Phase·14개 이슈 전부 구현. 매 이슈마다 Git 체크포인트(총 12 커밋).
-    <code>go test ./...</code>·<code>go vet ./...</code> 통과, 바이너리 스모크 테스트 완료.
+  <div class="timeline">
+    <div class="item">
+      <div class="date">2026-05-31</div>
+      <div class="title">SQLite 히스토리 영속 저장</div>
+      <ul>
+        <li><code>internal/message</code>를 메모리 로그에서 SQLite 저장소로 교체</li>
+        <li>기본 DB 파일은 <code>redphone.db</code></li>
+        <li>순수 Go 드라이버 <code>modernc.org/sqlite</code> 사용</li>
+        <li>브라우저를 닫아도 대화 내용 유지</li>
+      </ul>
+    </div>
+
+    <div class="item">
+      <div class="date">2026-05-31</div>
+      <div class="title">대화 삭제, 링크 처리, 커스텀 모달</div>
+      <ul>
+        <li>대화별 히스토리 삭제 API와 UI 추가</li>
+        <li>채팅 본문 URL 자동 링크화</li>
+        <li><code>alert</code>, <code>confirm</code>, <code>prompt</code> 제거</li>
+        <li>종료/삭제/IP 수정 흐름을 커스텀 모달로 통일</li>
+      </ul>
+    </div>
+
+    <div class="item">
+      <div class="date">2026-05-31</div>
+      <div class="title">화이트 테마 추가 및 보정</div>
+      <ul>
+        <li>다크/화이트 테마 전환 추가</li>
+        <li>화이트 테마에서 헤더/입력 바/오버레이 색상 토큰 정리</li>
+        <li>보조 텍스트 대비와 placeholder 가독성 조정</li>
+      </ul>
+    </div>
+
+    <div class="item">
+      <div class="date">2026-05-31</div>
+      <div class="title">친구 IP 관리와 전체 브로드캐스트</div>
+      <ul>
+        <li>친구 IP 추가/수정/삭제와 <code>peers.json</code> 저장</li>
+        <li>전체 스캔과 전체 메시지 브로드캐스트 추가</li>
+      </ul>
+    </div>
+
+    <div class="item">
+      <div class="date">2026-05-30 ~ 2026-05-31</div>
+      <div class="title">기본 기능 구현 완료</div>
+      <ul>
+        <li>UDP discovery, HTTP/HTTPS, WebSocket hub</li>
+        <li>1:1 메시지, 파일 전송, 공유 링크</li>
+        <li>graceful shutdown, 브라우저 자동 오픈, 정적 웹 UI</li>
+      </ul>
+    </div>
+
+    <div class="item warn">
+      <div class="date">Known gap</div>
+      <div class="title">파일 수신 로그는 아직 대화별 정밀 매핑이 부족함</div>
+      <ul>
+        <li>수신 파일 이벤트에 송신 피어 정보가 부족해 텍스트 채팅만큼 세밀하게 복원하지는 않음</li>
+      </ul>
+    </div>
   </div>
 
-  <div class="kicker">// TIMELINE (최신이 위)</div>
-  <div id="log">
-
-    <div class="entry">
-      <div class="when">2026-05-31 · Phase 11 · 발견</div>
-      <h3>친구 IP 직접 추가 + 선택적 전체 스캔 <span class="tag">완료</span></h3>
-      <ul>
-        <li>전체 IP 스캔이 막히는 망 대비 — 실행 후 <b>친구 IP를 직접 등록</b>해 유니캐스트로 발견. 추가/변경(✎)/삭제(✕).</li>
-        <li><b>단방향 등록으로 양방향 발견</b>: 유니캐스트 HELLO에 <code>reply=true</code> 1회 응답, 응답의 응답은 없어 루프 차단.</li>
-        <li><b>영속화</b>: 실행 파일 폴더 <code>peers.json</code>에 원자적 저장(temp+rename)·재시작 시 자동 로드 — <code>internal/peerbook</code>.</li>
-        <li><b>전체 스캔(옵션)</b>: <code>--scan</code> 또는 🔍 버튼 → 서브넷 전 호스트에 HELLO. <code>/16</code>↑는 본인 <code>/24</code>로 좁혀 폭주 방지. 기본 꺼짐.</li>
-        <li>종료 BYE도 등록 친구 IP로 유니캐스트 → 막힌 망에서도 즉시 사라짐.</li>
-        <li>테스트: peerbook 라운드트립 · reply 1회/루프차단(fakeConn) · 서브넷 호스트 열거 수학(/24=253) · API 핸들러. 실기 스모크 스캔 1266호스트.</li>
-      </ul>
-      <div class="commit">▸ feat(discovery): 친구 IP 직접 추가 + 유니캐스트 발견 + 선택적 전체 스캔</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">2026-05-31 · 기능 추가</div>
-      <h3>전체 쪽지(브로드캐스트 메시지) 추가 <span class="tag">완료</span></h3>
-      <ul>
-        <li>원조 빨간전화기(X-PopUp)의 상징 기능 — 모든 피어에게 한 번에 쪽지 전송.</li>
-        <li>백엔드 <code>POST /api/broadcast {text}</code>: 전 피어 <code>/inbox/message</code> 중계, <code>{sent,failed}</code> 집계.</li>
-        <li>UI: 피어 목록 맨 위 고정 <b>📢 전체</b> 항목, 선택 후 전송 시 전체 발송 + 결과 토스트.</li>
-        <li>테스트: 2피어+죽은피어 → sent=2/failed=1, 피어 0명 정상 처리. 전체 스위트·vet 통과.</li>
-      </ul>
-      <div class="commit">▸ feat(web): 전체 쪽지(/api/broadcast) + 📢 전체 UI</div>
-    </div>
-
-    <div class="entry red">
-      <div class="when">2026-05-31 · 버그 수정</div>
-      <h3>종료 오버레이가 처음부터 떠 있던 CSS 버그 수정 <span class="tag">완료</span></h3>
-      <ul>
-        <li><b>증상:</b> 실행 시 "RedPhone이 종료되었습니다. 이 창을 닫아도 됩니다" 문구만 표시.</li>
-        <li><b>원인:</b> <code>.bye{display:grid}</code>·<code>.composer{display:flex}</code>가 HTML
-          <code>hidden</code> 속성(=display:none)을 무효화 → 오버레이가 항상 보임.</li>
-        <li><b>수정:</b> 전역 <code>[hidden]{display:none!important}</code> 규칙 추가.</li>
-        <li>재빌드 후 서빙 확인: 정상적으로 UI(피어목록·대화)가 먼저 표시됨.</li>
-      </ul>
-      <div class="commit">▸ fix(web): [hidden] 규칙으로 종료 오버레이 상시표시 버그 해결</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">2026-05-30 · Phase 9 (#14)</div>
-      <h3>마무리 — slog 로깅 · README · 상태 갱신 <span class="tag">완료</span></h3>
-      <ul>
-        <li><code>log</code> → <code>log/slog</code> 구조화 로깅 전환.</li>
-        <li>README 작성: 빌드/플래그/종료 3경로/아키텍처 + <b>검증 절</b>(자동 테스트·스모크·LAN·한계).</li>
-        <li>CLAUDE.md 현재 상태 갱신, Todo.md 14개 전부 완료 표시.</li>
-      </ul>
-      <div class="commit">▸ feat(app): Phase 9 #14 마무리</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">Phase 7 (#11) · 웹 UI</div>
-      <h3>로컬 웹 UI + 같은-PC 발견용 SO_REUSEADDR <span class="tag">완료</span></h3>
-      <ul>
-        <li><code>index.html/style.css/app.js</code>: 피어목록(LED)·대화·파일첨부·URL공유·⏻종료 버튼.</li>
-        <li>바닐라 JS + WebSocket(자동 재연결), 토스트, 수신 시 전화기 링 애니메이션, 미읽음 배지.</li>
-        <li>반응형: 데스크톱·모바일·<b>Galaxy Fold(380px)</b> 대응.</li>
-        <li>discovery: bind 전 <code>SO_REUSEADDR</code> 설정(ListenConfig.Control).</li>
-      </ul>
-      <div class="commit">▸ feat(web,discovery): Phase 7 #11 웹 UI</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">Phase 8 (#13) + #12 · 통합</div>
-      <h3>전체 배선 · graceful 종료 · 브라우저 자동오픈 <span class="tag">완료</span></h3>
-      <ul>
-        <li><code>app.Run</code>: discovery+http+ws+share+sweep 전체 배선, 3경로→1 ctx 수렴.</li>
-        <li>종료: BYE 브로드캐스트 → <code>http.Shutdown(3s)</code> → hub/ticker 정지 → Wait.</li>
-        <li><code>POST /api/shutdown</code>, 피어 변동 시 WS 실시간 푸시, 브라우저 자동 오픈(OS 분기).</li>
-        <li>discovery <code>SO_BROADCAST</code> 설정(Windows 송신 거부 회피). 통합 테스트(HTTP 기동+종료).</li>
-      </ul>
-      <div class="commit">▸ feat(app,web): Phase 8 #13 + #12</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">Phase 6 (#9, #10) · URL 공유 (신규 기능)</div>
-      <h3>토큰 기반 휘발성 링크 공유 <span class="tag">완료</span></h3>
-      <ul>
-        <li><code>share.Store</code>: 22자 base62 토큰 발급/조회/회수, 확장자+sniff 분류.</li>
-        <li><code>GET /s/{token}</code>: image=인라인 · text=<b>이스케이프</b> 미리보기 · 그외=다운로드 · 404.</li>
-        <li><code>POST /api/share</code>·<code>GET /api/shares</code>·<code>DELETE /api/share/{token}</code>.</li>
-      </ul>
-      <div class="commit">▸ feat(share,web): Phase 6 #9/#10</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">Phase 5 (#8) · 파일 전송</div>
-      <h3>스트리밍 파일 전송 (SHA-256 무결성) <span class="tag">완료</span></h3>
-      <ul>
-        <li><code>transfer.SafeName/Save</code>: 경로 탈출(<code>../</code>) 차단, 충돌 회피, 스트리밍 저장.</li>
-        <li><code>/api/sendfile</code>: MultipartReader+io.Pipe로 피어에 무버퍼 중계.</li>
-        <li><code>/inbox/file</code>: downloads 저장 + WS 알림. SHA-256 왕복 동일 테스트.</li>
-      </ul>
-      <div class="commit">▸ feat(transfer,web): Phase 5 #8</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">Phase 4 (#7) · 메시징</div>
-      <h3>쪽지 A→B 라운드트립 + WS 푸시 <span class="tag">완료</span></h3>
-      <ul>
-        <li><code>message.History</code>(휘발성 메모리 로그), <code>POST /api/send</code> → 상대 <code>/inbox/message</code> 중계.</li>
-        <li>수신 시 WS 푸시 + 히스토리 저장. 오프라인=404, 전송실패=502 명시.</li>
-        <li>2-서버 인프로세스 라운드트립 테스트.</li>
-      </ul>
-      <div class="commit">▸ feat(message,web): Phase 4 #7</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">Phase 3 (#5, #6) · HTTP + WS</div>
-      <h3>HTTP 서버 · 포트 폴백 · channel 기반 WS Hub <span class="tag">완료</span></h3>
-      <ul>
-        <li><code>net/http</code> + <code>embed.FS</code> 정적 서빙, 포트 점유 시 OS 자동 폴백, <code>/api/peers</code>.</li>
-        <li>WS Hub: 클라이언트 맵을 단일 goroutine이 소유(mutex 없음). 실제 핸드셰이크 통합 테스트.</li>
-        <li>유일한 외부 의존성 <code>coder/websocket v1.8.14</code> 추가.</li>
-      </ul>
-      <div class="commit">▸ feat(web): Phase 3 #5/#6 + /ws</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">Phase 2 (#3, #4) · Discovery (UDP)</div>
-      <h3>HELLO/BYE 브로드캐스트·수신 <span class="tag">완료</span></h3>
-      <ul>
-        <li>평면 JSON 와이어 포맷(버전/타입/빈 id 검증), 라운드트립 테스트.</li>
-        <li><code>Service.Run</code>: broadcast(즉시1회+ticker) + listen, 종료 시 BYE→close 순서.</li>
-        <li>피어 IP는 <b>패킷 src addr</b>에서만 취득(스푸핑 방지), 자기 id 필터. fakeConn 단위 테스트.</li>
-      </ul>
-      <div class="commit">▸ feat(discovery): Phase 2 #3/#4</div>
-    </div>
-
-    <div class="entry">
-      <div class="when">Phase 1 (#2) · Peer 레지스트리</div>
-      <h3>Upsert / Snapshot / Expire(ttl) <span class="tag">완료</span></h3>
-      <ul>
-        <li>동시성 안전 맵(RWMutex), 주입 가능한 시계로 만료 결정론적 테스트.</li>
-        <li>Snapshot은 이름순 안정 정렬 + 방어적 복사. LastSeen은 수신 시점으로 직접 stamp.</li>
-      </ul>
-      <div class="commit">▸ feat(peer): Phase 1 Registry</div>
-    </div>
-
-    <div class="entry amber">
-      <div class="when">2026-05-30 · Phase 0 (#1) · 세션 시작</div>
-      <h3>기반 세팅 + 생명주기 골격 <span class="tag">완료</span></h3>
-      <ul>
-        <li><code>red-phone.html</code> 작업 지시서 분석 — 9 Phase / 14 이슈 파악.</li>
-        <li>디렉터리 골격 + <code>go.mod</code>(<code>github.com/chobocho/redphone</code>, Go 1.25.1).</li>
-        <li><code>CLAUDE.md</code>·<code>Todo.md</code>·<code>.gitignore</code> 작성.</li>
-        <li><code>app.Run</code>: 3종 종료 경로(stdin exit/버튼/SIGINT)를 단일 ctx 취소로 수렴.</li>
-      </ul>
-      <div class="commit">▸ feat(app): Phase 0 생명주기 골격</div>
-    </div>
-
+  <div class="foot">
+    verification: <code>go test ./...</code>, <code>go build -o redphone.exe .\cmd\redphone</code>
   </div>
-
-  <div class="note">
-    <b>알려진 한계 (정직 기록):</b> Discovery는 명세대로 UDP 브로드캐스트를 쓴다.
-    일부 Windows 스택은 브로드캐스트를 같은 호스트의 다른 로컬 소켓으로 되돌리지 않아
-    <b>같은 PC 2인스턴스</b> 상호 발견이 안 될 수 있다(쪽지·파일·공유는 정상).
-    <b>2대 머신 실제 LAN에서는 정상 발견.</b> 같은-PC 데모는 멀티캐스트 전환(v2)으로 해결 예정.
-    또한 <code>-race</code>는 C 컴파일러(cgo) 필요 — 이 머신엔 미설치, CI에서 수행.
-  </div>
-
-  <div class="footer">RedPhone · Go · LAN P2P · single binary // 매 턴 종료 시 본 파일을 한국어로 갱신</div>
 </div>
 </body>
 </html>

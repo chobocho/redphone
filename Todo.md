@@ -1,38 +1,37 @@
 # RedPhone Todo
 
-> 규칙: 한 번에 이슈 1개. TDD(RED→GREEN→리팩터). 끝나면 Git 체크포인트.
+## 완료
 
-## Phase 0 — 스캐폴딩 / 생명주기
-- [x] #1 go.mod, cmd/redphone, internal/app 골격. context + signal + stdin "exit"
-      로 즉시 종료되는 빈 앱. 테스트: cancel 시 Run이 ≤100ms 내 반환.
+- [x] Phase 0: 앱 생명주기, 종료 경로, 기본 진입점
+- [x] Phase 1: 피어 레지스트리
+- [x] Phase 2: UDP HELLO/BYE discovery
+- [x] Phase 3: HTTP 서버, 정적 UI, WebSocket hub
+- [x] Phase 4: 1:1 메시지 송수신
+- [x] Phase 5: 파일 전송
+- [x] Phase 6: URL 공유 링크
+- [x] Phase 7: 웹 UI
+- [x] Phase 8: graceful shutdown
+- [x] Phase 9: 문서화 및 검증 정리
+- [x] 친구 IP 직접 추가/수정/삭제, 전체 스캔
+- [x] 전체 브로드캐스트 메시지
+- [x] SQLite 기반 채팅 히스토리 영속 저장
+- [x] 대화별 히스토리 삭제
+- [x] 채팅 URL 자동 링크 처리
+- [x] `alert`/`confirm`/`prompt` 제거 후 커스텀 모달 적용
+- [x] 다크/화이트 테마
+- [x] 화이트 테마 가독성 수정
 
-## Phase 1 — Peer 레지스트리
-- [x] #2 peer.Registry: Upsert/Snapshot/Expire(ttl). 단위 테스트로 만료 검증.
+## 현재 상태
 
-## Phase 2 — Discovery (UDP)
-- [x] #3 HELLO/BYE JSON encode/decode 테스트.
-- [x] #4 broadcast(ticker) + listen. src addr에서 IP 취득. 자기 id 필터.
+- 메시지 히스토리는 `redphone.db`에 저장
+- 친구 IP 목록은 `peers.json`에 저장
+- `*.db`, `peers.json`, `downloads/`는 `.gitignore` 대상
 
-## Phase 3 — HTTP + WS Hub
-- [x] #5 net/http 서버 + embed 정적 서빙 + 포트 폴백. /api/peers 핸들러 테스트.
-- [x] #6 channel 기반 WS Hub(register/unregister/broadcast). -race 통과.
+## 남은 후보 작업
 
-## Phase 4 — 메시징
-- [x] #7 /api/send → 상대 /inbox/message 라운드트립 테스트. 수신 시 WS 푸시.
-
-## Phase 5 — 파일 전송
-- [x] #8 /api/sendfile → /inbox/file 스트리밍 저장. SHA-256 왕복 동일 + ../ 차단.
-
-## Phase 6 — URL 공유 (신규)
-- [x] #9 share.Store: 토큰 발급/조회/회수 테스트.
-- [x] #10 GET /s/{token}: image=인라인, text=미리보기, 그 외=다운로드. 404 테스트.
-
-## Phase 7 — 웹 UI
-- [x] #11 index.html/app.js/style.css: 피어목록·대화·첨부·공유·종료버튼. 반응형(Fold).
-- [x] #12 브라우저 자동 오픈(OS 분기).
-
-## Phase 8 — Graceful Shutdown 통합
-- [x] #13 POST /api/shutdown + BYE 브로드캐스트 + Shutdown(3s). 두 경로 모두 -race.
-
-## Phase 9 — 다듬기
-- [x] #14 구조화 로깅, 설정 플래그(--name --port), README 검증 절, 동시성 단순화.
+- [ ] 수신 파일 이벤트에도 송신 피어 정보를 포함해서 대화별 파일 로그 정교화
+- [ ] 채팅 검색
+- [ ] 히스토리 export/import
+- [ ] 대화방별 unread 영속화
+- [ ] 모바일 UI 미세 조정
+- [ ] E2E 브라우저 테스트 추가
