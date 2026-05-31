@@ -25,6 +25,16 @@
     <ul class="peers" id="peers"></ul>
     <p class="empty" id="peersEmpty">같은 LAN의 RedPhone을 찾는 중…</p>
 
+    <div class="sec-label">친구 IP <button class="scan" id="scanBtn" title="서브넷 전체에 HELLO를 뿌려 검색">🔍 전체 스캔</button></div>
+    <div class="ipbox">
+      <div class="iprow">
+        <input type="text" id="ipInput" placeholder="예: 192.168.0.42" autocomplete="off" inputmode="decimal" />
+        <button id="ipAddBtn">추가</button>
+      </div>
+      <ul class="targets" id="targets"></ul>
+      <p class="empty" id="targetsEmpty">브로드캐스트가 막히면 친구 IP를 직접 추가하세요.</p>
+    </div>
+
     <div class="sec-label">URL 공유</div>
     <div class="share-box">
       <label class="filebtn">파일 공유 링크 만들기

@@ -32,6 +32,7 @@ type Message struct {
 	HTTPSPort int    `json:"httpsPort,omitempty"` // v2: 메시지/파일메타 전용 TLS 포트
 	FP        string `json:"fp,omitempty"`        // v2: leaf cert SHA-256 hex
 	TS        int64  `json:"ts,omitempty"`
+	Reply     bool   `json:"reply,omitempty"` // 유니캐스트 probe에 대한 1회 응답 표시. 발견 루프를 끊는다.
 }
 
 // Hello builds a HELLO advertisement. ip는 의도적으로 싣지 않는다 —

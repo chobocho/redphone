@@ -23,6 +23,24 @@ func TestHelloRoundTrip(t *testing.T) {
 	}
 }
 
+// TestHelloReplyRoundTrip는 reply 플래그가 인코딩→디코딩에서 보존되는지 본다.
+// reply=true는 유니캐스트 응답을 뜻하며, 받는 쪽은 이걸 보고 재응답하지 않는다.
+func TestHelloReplyRoundTrip(t *testing.T) {
+	in := Hello("id-1", "alice", 17080, 17443, "abcd", 1234)
+	in.Reply = true
+	b, err := in.Encode()
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	out, err := Decode(b)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !out.Reply || out != in {
+		t.Fatalf("reply round-trip mismatch:\n in=%+v\nout=%+v", in, out)
+	}
+}
+
 func TestByeRoundTrip(t *testing.T) {
 	in := Bye("uuid-1")
 	b, err := in.Encode()

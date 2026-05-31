@@ -77,6 +77,25 @@ body{
 .shares li a{display:block;color:var(--red-soft);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .shares li .copy{cursor:pointer;color:var(--txt-faint);border:0;background:0;font-size:10.5px;margin-top:2px}
 
+/* ---------- friend IP ---------- */
+.scan{margin-left:auto;font-family:var(--mono);background:var(--panel-3);border:1px solid var(--line);
+  color:var(--txt-dim);padding:3px 8px;border-radius:7px;cursor:pointer;font-size:10px;letter-spacing:.04em;text-transform:none}
+.scan:hover{background:var(--red-deep);border-color:var(--red);color:#fff}
+.ipbox{margin-top:2px}
+.iprow{display:flex;gap:6px}
+.iprow input{flex:1;min-width:0;background:var(--panel-3);border:1px solid var(--line);color:var(--txt);
+  border-radius:9px;padding:8px 10px;font-size:13px;font-family:var(--mono);outline:none}
+.iprow input:focus{border-color:var(--red-soft)}
+.iprow button{font-family:var(--mono);font-size:12px;font-weight:700;color:#fff;
+  background:linear-gradient(150deg,#ff4646,#c92a2d);border:0;border-radius:9px;padding:0 14px;cursor:pointer}
+.targets{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:22vh;overflow:auto}
+.targets li{display:flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:8px;padding:7px 9px;font-family:var(--mono);font-size:12px}
+.targets li .ip{flex:1;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.targets li .edit,.targets li .rm{border:0;background:0;cursor:pointer;font-size:13px;color:var(--txt-faint);padding:1px 3px}
+.targets li .edit:hover{color:var(--red-soft)}
+.targets li .rm:hover{color:var(--red)}
+
 /* ---------- main / chat ---------- */
 .main{display:flex;flex-direction:column;min-width:0}
 .menu{display:none}

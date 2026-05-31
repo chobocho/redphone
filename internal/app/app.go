@@ -26,6 +26,7 @@ import (
 	"github.com/chobocho/redphone/internal/discovery"
 	"github.com/chobocho/redphone/internal/message"
 	"github.com/chobocho/redphone/internal/peer"
+	"github.com/chobocho/redphone/internal/peerbook"
 	"github.com/chobocho/redphone/internal/share"
 	"github.com/chobocho/redphone/internal/tlsid"
 	"github.com/chobocho/redphone/internal/web"
@@ -44,6 +45,7 @@ type Config struct {
 	HTTPSPort     int       // 우선 HTTPS 포트(사용 중이면 OS 자동 폴백)
 	DiscoveryPort int       // 0 → discovery.Port(17000)
 	OpenBrowser   bool      // 기동 시 기본 브라우저 자동 오픈
+	ScanAll       bool      // true면 주기적으로 서브넷 전체에 유니캐스트 HELLO 스캔
 	Stdin         io.Reader // 테스트 주입용; nil이면 os.Stdin
 	OnReady       func(httpURL string)
 }
@@ -91,6 +93,32 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	httpsPort := lnTLS.Addr().(*net.TCPAddr).Port
 
+	// ---- Discovery 서비스(소켓은 아래에서 Open) ----
+	// 친구 IP 수동 관리·스캔을 위해 web.New보다 먼저 만든다.
+	dport := cfg.DiscoveryPort
+	if dport == 0 {
+		dport = discovery.Port
+	}
+	dsvc := &discovery.Service{
+		SelfID: selfID, Name: cfg.Name,
+		HTTPPort: httpPort, HTTPSPort: httpsPort, FP: id.Fingerprint,
+		Port: dport, ScanOnStart: cfg.ScanAll,
+	}
+
+	// 저장된 친구 IP를 적재한다. 실제 probe는 Run의 광고 루프가 맡으므로
+	// 여기서는 목록만 채운다(소켓이 아직 없다).
+	pbPath := peerbook.DefaultPath()
+	if saved, lerr := peerbook.Load(pbPath); lerr != nil {
+		slog.Warn("peers.json 로드 실패", "err", lerr, "path", pbPath)
+	} else {
+		for _, ip := range saved {
+			if aerr := dsvc.AddTarget(ip); aerr != nil {
+				slog.Warn("저장된 친구 IP 무시", "ip", ip, "err", aerr)
+			}
+		}
+	}
+	tctl := &targetControl{svc: dsvc, path: pbPath}
+
 	srv := web.New(web.Options{
 		Reg:         reg,
 		SelfID:      selfID,
@@ -99,23 +127,16 @@ func Run(ctx context.Context, cfg Config) error {
 		Shares:      shares,
 		DownloadDir: "downloads",
 		Shutdown:    cancel, // 종료 버튼 → root ctx 취소
+		Targets:     tctl,
 	})
 	hub := srv.Hub()
 
 	// ---- Discovery 소켓 ----
-	dport := cfg.DiscoveryPort
-	if dport == 0 {
-		dport = discovery.Port
-	}
 	dconn, dst, err := discovery.Open(dport)
 	if err != nil {
 		_ = ln.Close()
 		_ = lnTLS.Close()
 		return fmt.Errorf("app: discovery open: %w", err)
-	}
-	dsvc := &discovery.Service{
-		SelfID: selfID, Name: cfg.Name,
-		HTTPPort: httpPort, HTTPSPort: httpsPort, FP: id.Fingerprint,
 	}
 
 	// 피어 목록 변동을 브라우저로 실시간 푸시.
@@ -193,6 +214,41 @@ func sweepPeers(ctx context.Context, reg *peer.Registry, pushPeers func()) {
 				pushPeers()
 			}
 		}
+	}
+}
+
+// targetControl adapts the discovery service to web.PeerControl and persists the
+// friend-IP list to peers.json on every change.
+//
+// WHY: 발견(discovery)은 순수 네트워킹만, 영속화는 app이 책임진다(peerbook).
+// 추가/삭제가 곧바로 디스크에 반영돼 재시작해도 친구 목록이 유지된다.
+type targetControl struct {
+	svc  *discovery.Service
+	path string
+	mu   sync.Mutex // 동시 요청의 save 직렬화
+}
+
+func (c *targetControl) AddTarget(ip string) error {
+	if err := c.svc.AddTarget(ip); err != nil {
+		return err
+	}
+	c.save()
+	return nil
+}
+
+func (c *targetControl) RemoveTarget(ip string) {
+	c.svc.RemoveTarget(ip)
+	c.save()
+}
+
+func (c *targetControl) Targets() []string     { return c.svc.Targets() }
+func (c *targetControl) ScanLAN() (int, error) { return c.svc.ScanLAN() }
+
+func (c *targetControl) save() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := peerbook.Save(c.path, c.svc.Targets()); err != nil {
+		slog.Warn("peers.json 저장 실패", "err", err, "path", c.path)
 	}
 }
 

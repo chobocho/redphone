@@ -35,6 +35,16 @@ type Options struct {
 	Shares      *share.Store // URL 공유 저장소; nil이면 공유 비활성
 	ShareHost   string       // 공유 URL의 host:port 강제값; ""이면 r.Host
 	Shutdown    func()       // 종료 버튼 콜백(보통 root ctx의 cancel)
+	Targets     PeerControl  // 친구 IP 수동 관리 + 전체 스캔; nil이면 비활성
+}
+
+// PeerControl is the discovery side of manual friend-IP management, kept as an
+// interface so the web layer doesn't import discovery (배선은 app이 한다).
+type PeerControl interface {
+	AddTarget(ip string) error // 잘못된 IP면 에러
+	RemoveTarget(ip string)
+	Targets() []string
+	ScanLAN() (int, error) // 미기동이면 에러
 }
 
 // Server owns the HTTP routing surface and the WS hub.
@@ -76,6 +86,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /inbox/message", requireTLS(s.handleInboxMessage))
 	mux.HandleFunc("POST /inbox/file/announce", requireTLS(s.handleInboxFileAnnounce))
 	mux.HandleFunc("PUT /inbox/file/{token}", s.handleInboxFileBody)
+	mux.HandleFunc("GET /api/targets", s.handleListTargets)
+	mux.HandleFunc("POST /api/targets", s.handleAddTarget)
+	mux.HandleFunc("PUT /api/targets", s.handleEditTarget)
+	mux.HandleFunc("DELETE /api/targets/{ip}", s.handleRemoveTarget)
+	mux.HandleFunc("POST /api/scan", s.handleScan)
 	mux.HandleFunc("POST /api/share", s.handleShareUpload)
 	mux.HandleFunc("GET /api/shares", s.handleShareList)
 	mux.HandleFunc("DELETE /api/share/{token}", s.handleShareRevoke)

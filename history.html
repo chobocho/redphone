@@ -61,7 +61,7 @@ h1{font-family:var(--mono);font-size:20px;font-weight:800;margin:0;letter-spacin
 
   <div class="meter">
     <div class="bar"><div class="fill" style="width:100%"></div></div>
-    <div class="pct">14 / 14 이슈 · 100% — Phase 0~9 전부 완료</div>
+    <div class="pct">14 / 14 이슈 · 100% — Phase 0~9 + 보안 + Phase 11(친구 IP 발견) 완료</div>
   </div>
 
   <div class="note">
@@ -72,6 +72,20 @@ h1{font-family:var(--mono);font-size:20px;font-weight:800;margin:0;letter-spacin
 
   <div class="kicker">// TIMELINE (최신이 위)</div>
   <div id="log">
+
+    <div class="entry">
+      <div class="when">2026-05-31 · Phase 11 · 발견</div>
+      <h3>친구 IP 직접 추가 + 선택적 전체 스캔 <span class="tag">완료</span></h3>
+      <ul>
+        <li>전체 IP 스캔이 막히는 망 대비 — 실행 후 <b>친구 IP를 직접 등록</b>해 유니캐스트로 발견. 추가/변경(✎)/삭제(✕).</li>
+        <li><b>단방향 등록으로 양방향 발견</b>: 유니캐스트 HELLO에 <code>reply=true</code> 1회 응답, 응답의 응답은 없어 루프 차단.</li>
+        <li><b>영속화</b>: 실행 파일 폴더 <code>peers.json</code>에 원자적 저장(temp+rename)·재시작 시 자동 로드 — <code>internal/peerbook</code>.</li>
+        <li><b>전체 스캔(옵션)</b>: <code>--scan</code> 또는 🔍 버튼 → 서브넷 전 호스트에 HELLO. <code>/16</code>↑는 본인 <code>/24</code>로 좁혀 폭주 방지. 기본 꺼짐.</li>
+        <li>종료 BYE도 등록 친구 IP로 유니캐스트 → 막힌 망에서도 즉시 사라짐.</li>
+        <li>테스트: peerbook 라운드트립 · reply 1회/루프차단(fakeConn) · 서브넷 호스트 열거 수학(/24=253) · API 핸들러. 실기 스모크 스캔 1266호스트.</li>
+      </ul>
+      <div class="commit">▸ feat(discovery): 친구 IP 직접 추가 + 유니캐스트 발견 + 선택적 전체 스캔</div>
+    </div>
 
     <div class="entry">
       <div class="when">2026-05-31 · 기능 추가</div>

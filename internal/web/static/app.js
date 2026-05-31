@@ -214,6 +214,79 @@
     }
   }
 
+  /* ---------------- friend IP management ---------------- */
+  async function loadTargets() {
+    try {
+      const res = await fetch("/api/targets");
+      const d = await jsonOrNull(res);
+      renderTargets((d && d.targets) || []);
+    } catch { /* 무시 */ }
+  }
+  function renderTargets(list) {
+    const ul = $("targets");
+    ul.innerHTML = "";
+    $("targetsEmpty").style.display = list.length ? "none" : "block";
+    for (const ip of list) {
+      const li = document.createElement("li");
+      li.innerHTML =
+        `<span class="ip">${esc(ip)}</span>` +
+        `<button class="edit" title="변경">✎</button>` +
+        `<button class="rm" title="삭제">✕</button>`;
+      li.querySelector(".edit").addEventListener("click", () => editTarget(ip));
+      li.querySelector(".rm").addEventListener("click", () => removeTarget(ip));
+      ul.appendChild(li);
+    }
+  }
+  async function addTarget(ip) {
+    ip = (ip || "").trim();
+    if (!ip) return;
+    try {
+      const res = await fetch("/api/targets", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip }),
+      });
+      const d = await jsonOrNull(res);
+      if (!res.ok) { toast("추가 실패: " + (d && d.error ? d.error : res.status)); return; }
+      renderTargets((d && d.targets) || []);
+      $("ipInput").value = "";
+      toast("친구 IP 추가: " + ip);
+    } catch (err) { toast("추가 오류: " + err.message); }
+  }
+  async function editTarget(oldIp) {
+    const next = prompt("새 IP로 변경", oldIp);
+    if (next === null) return;
+    const nv = next.trim();
+    if (!nv || nv === oldIp) return;
+    try {
+      const res = await fetch("/api/targets", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ old: oldIp, new: nv }),
+      });
+      const d = await jsonOrNull(res);
+      if (!res.ok) { toast("변경 실패: " + (d && d.error ? d.error : res.status)); return; }
+      renderTargets((d && d.targets) || []);
+      toast("변경됨: " + nv);
+    } catch (err) { toast("변경 오류: " + err.message); }
+  }
+  async function removeTarget(ip) {
+    try {
+      const res = await fetch("/api/targets/" + encodeURIComponent(ip), { method: "DELETE" });
+      const d = await jsonOrNull(res);
+      if (!res.ok) { toast("삭제 실패"); return; }
+      renderTargets((d && d.targets) || []);
+      toast("삭제됨: " + ip);
+    } catch (err) { toast("삭제 오류: " + err.message); }
+  }
+  async function scanLAN() {
+    toast("전체 스캔 중…");
+    try {
+      const res = await fetch("/api/scan", { method: "POST" });
+      const d = await jsonOrNull(res);
+      if (!res.ok) { toast("스캔 실패: " + (d && d.error ? d.error : res.status)); return; }
+      toast(`스캔: ${d.sent}개 호스트에 HELLO 전송`);
+    } catch (err) { toast("스캔 오류: " + err.message); }
+  }
+
   /* ---------------- WebSocket ---------------- */
   function setWS(on) {
     $("wsLed").className = "led " + (on ? "on" : "amber");
@@ -273,10 +346,14 @@
     $("exitBtn").addEventListener("click", shutdown);
     $("menuBtn").addEventListener("click", openSide);
     $("scrim").addEventListener("click", closeSide);
+    $("ipAddBtn").addEventListener("click", () => addTarget($("ipInput").value));
+    $("ipInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addTarget($("ipInput").value); } });
+    $("scanBtn").addEventListener("click", scanLAN);
 
     // 초기 데이터
     fetch("/api/peers").then(jsonOrNull).then((p) => { state.peers = p || []; renderPeers(); });
     loadShares();
+    loadTargets();
     connectWS();
   }
   document.addEventListener("DOMContentLoaded", init);
