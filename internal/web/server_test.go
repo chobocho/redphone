@@ -49,6 +49,36 @@ func TestStaticIndexServed(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "RedPhone") {
 		t.Fatalf("embedded index not served: %q", rec.Body.String())
 	}
+	if ct := rec.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
+		t.Fatalf("want utf-8 html content-type, got %q", ct)
+	}
+}
+
+func TestStaticAssetsServedAsUTF8(t *testing.T) {
+	srv := New(Options{Reg: peer.NewRegistry()})
+
+	cases := []struct {
+		path string
+		want string
+	}{
+		{path: "/style.css", want: "text/css; charset=utf-8"},
+		{path: "/app.js", want: "text/javascript; charset=utf-8"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			srv.Handler().ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("want 200 for %s, got %d", tc.path, rec.Code)
+			}
+			if ct := rec.Header().Get("Content-Type"); ct != tc.want {
+				t.Fatalf("want %q, got %q", tc.want, ct)
+			}
+		})
+	}
 }
 
 // WHY: 선호 포트가 점유돼 있어도 앱은 떠야 한다 → OS 자동 폴백.

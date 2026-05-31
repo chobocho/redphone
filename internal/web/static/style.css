@@ -99,7 +99,7 @@ body{
 .who h1{font-family:var(--mono);font-size:15px;font-weight:800;margin:0}
 .who small{font-family:var(--mono);font-size:10.5px;color:var(--txt-faint)}
 
-button,input{font:inherit}
+button,input,textarea{font:inherit}
 button{
   border:1px solid transparent;
   border-radius:8px;
@@ -213,12 +213,12 @@ button{
 }
 .myip .copy:hover,.shares li .copy:hover,.shares li .rm:hover{color:var(--red-soft)}
 .iprow{display:flex;gap:6px}
-.iprow input,.composer input[type=text],.modal-body input{
+.iprow input,.composer #text,.modal-body input{
   min-width:0;background:var(--panel-3);border:1px solid var(--line);color:var(--txt);
   border-radius:9px;padding:10px 12px;font-size:13px;outline:none
 }
 .iprow input{flex:1;font-family:var(--mono)}
-.iprow input:focus,.composer input[type=text]:focus,.modal-body input:focus{border-color:var(--red-soft)}
+.iprow input:focus,.composer #text:focus,.modal-body input:focus{border-color:var(--red-soft)}
 .iprow button{padding:0 14px}
 .targets{
   gap:6px;margin-top:10px;max-height:22vh;overflow:auto
@@ -271,7 +271,7 @@ button{
 }
 
 .composer{
-  display:flex;align-items:center;gap:10px;padding:13px 16px;border-top:1px solid var(--line);
+  display:flex;align-items:flex-end;gap:10px;padding:13px 16px;border-top:1px solid var(--line);
   background:var(--chrome-bg)
 }
 .attach{
@@ -280,7 +280,10 @@ button{
   background:var(--panel-3);border:1px solid var(--line);border-radius:10px;padding:11px 12px
 }
 .attach:hover{border-color:var(--red-soft);color:var(--red-soft)}
-.composer input[type=text]{flex:1;font-family:var(--kr);font-size:14px}
+.composer #text{
+  flex:1;font-family:var(--kr);font-size:14px;line-height:1.45;resize:none;
+  min-height:43px;max-height:140px;overflow-y:hidden
+}
 .composer button{border-radius:10px;padding:11px 18px}
 .composer button:disabled,.ghost:disabled{opacity:.5;cursor:not-allowed}
 

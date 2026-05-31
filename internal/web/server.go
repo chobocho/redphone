@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"path"
 	"sync"
 
 	"github.com/chobocho/redphone/internal/message"
@@ -169,7 +170,26 @@ func (s *Server) staticHandler() http.Handler {
 		// embed 디렉터리는 빌드 타임에 보장되므로 여기 도달하면 프로그래밍 오류.
 		panic(fmt.Sprintf("web: embed sub: %v", err))
 	}
-	return http.FileServer(http.FS(sub))
+	files := http.FileServer(http.FS(sub))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ct := staticContentType(r.URL.Path); ct != "" {
+			w.Header().Set("Content-Type", ct)
+		}
+		files.ServeHTTP(w, r)
+	})
+}
+
+func staticContentType(name string) string {
+	switch path.Ext(path.Clean(name)) {
+	case "", ".html":
+		return "text/html; charset=utf-8"
+	case ".css":
+		return "text/css; charset=utf-8"
+	case ".js":
+		return "text/javascript; charset=utf-8"
+	default:
+		return ""
+	}
 }
 
 // Listen binds the preferred port, falling back to an OS-assigned one.

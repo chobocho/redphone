@@ -72,6 +72,31 @@
     btn.disabled = !state.selected;
   }
 
+  function upgradeComposerInput() {
+    const input = $("text");
+    if (!input || input.tagName === "TEXTAREA") return input;
+
+    const textarea = document.createElement("textarea");
+    textarea.id = input.id;
+    textarea.rows = 1;
+    textarea.placeholder = input.placeholder || "메시지를 입력하세요";
+    textarea.autocomplete = "off";
+    textarea.value = input.value || "";
+
+    input.replaceWith(textarea);
+    return textarea;
+  }
+
+  function resizeComposerInput() {
+    const input = $("text");
+    if (!input) return;
+
+    input.style.height = "0px";
+    const nextHeight = Math.min(Math.max(input.scrollHeight, 43), 140);
+    input.style.height = `${nextHeight}px`;
+    input.style.overflowY = input.scrollHeight > 140 ? "auto" : "hidden";
+  }
+
   function renderPeers() {
     const ul = $("peers");
     ul.innerHTML = "";
@@ -233,6 +258,7 @@
     const text = input.value.trim();
     if (!text || !state.selected) return;
     input.value = "";
+    resizeComposerInput();
     if (state.selected === ALL) return broadcastText(text);
     try {
       const res = await fetch("/api/send", {
@@ -667,9 +693,14 @@
     initModal();
     setClearButton();
 
+    const composerInput = upgradeComposerInput();
+    resizeComposerInput();
+
     $("sendBtn").addEventListener("click", sendText);
-    $("text").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
+    composerInput.addEventListener("input", resizeComposerInput);
+    composerInput.addEventListener("keydown", (e) => {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         sendText();
       }
