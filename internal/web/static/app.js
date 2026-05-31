@@ -373,7 +373,7 @@
     $("attachLabel").title = bi("attachTitle");
     $("attachLabel").setAttribute("aria-label", bi("attachTitle"));
     $("attachText").textContent = "📎";
-    $("sendBtn").textContent = "📤";
+    $("sendBtn").textContent = "⬆️";
     $("sendBtn").title = bi("send");
     $("sendBtn").setAttribute("aria-label", bi("send"));
     $("modalCancel").textContent = t("cancel");
