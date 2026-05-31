@@ -30,7 +30,8 @@ func testConfig(t *testing.T, stdin io.Reader, onReady func(string)) Config {
 		HTTPPort:       0, // OS 자동
 		DiscoveryPort:  0, // freeUDPPort로 채움
 		OpenBrowser:    false,
-		InstanceIDPath: t.TempDir() + "/redphone.id",
+		InstanceIDPath: filepath.Join(t.TempDir(), "redphone.id"),
+		NamePath:       filepath.Join(t.TempDir(), "redphone-name.txt"),
 		Stdin:          stdin,
 		OnReady:        onReady,
 	}
@@ -136,5 +137,26 @@ func TestLoadOrCreateStableIDPersists(t *testing.T) {
 	}
 	if id1 == "" || id1 != id2 {
 		t.Fatalf("stable id mismatch: %q vs %q", id1, id2)
+	}
+}
+
+func TestNameStatePersists(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "redphone-name.txt")
+
+	state := newNameState(path, "alpha")
+	got, err := state.Set("bravo")
+	if err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+	if got != "bravo" || state.Get() != "bravo" {
+		t.Fatalf("unexpected name state: got=%q current=%q", got, state.Get())
+	}
+
+	loaded, err := loadSavedName(path, "fallback")
+	if err != nil {
+		t.Fatalf("loadSavedName: %v", err)
+	}
+	if loaded != "bravo" {
+		t.Fatalf("loaded = %q, want bravo", loaded)
 	}
 }

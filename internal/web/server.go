@@ -28,6 +28,8 @@ type Options struct {
 	Reg         *peer.Registry
 	SelfID      string
 	Name        string
+	NameGet     func() string
+	Rename      func(string) (string, error)
 	History     *message.History
 	Client      *http.Client                 // 평문 HTTP(파일 본문 PUT 등)용; nil이면 http.DefaultClient
 	PeerTLS     func(fp string) *http.Client // 피어로 TLS 송신할 때 핀닝된 클라이언트
@@ -81,6 +83,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/peers", s.handlePeers)
 	mux.HandleFunc("GET /api/self", s.handleSelf)
+	mux.HandleFunc("PUT /api/self/name", s.handleRenameSelf)
 	mux.HandleFunc("GET /api/history", s.handleHistory)
 	mux.HandleFunc("DELETE /api/history/{peerID}", s.handleDeleteHistory)
 	mux.HandleFunc("DELETE /api/history/entry/{entryID}", s.handleDeleteEntry)
@@ -135,9 +138,38 @@ func (s *Server) handlePeers(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleSelf(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"id":   s.opt.SelfID,
-		"name": s.opt.Name,
+		"name": s.selfName(),
 		"ip":   localIP(),
 	})
+}
+
+func (s *Server) selfName() string {
+	if s.opt.NameGet != nil {
+		if name := s.opt.NameGet(); name != "" {
+			return name
+		}
+	}
+	return s.opt.Name
+}
+
+func (s *Server) handleRenameSelf(w http.ResponseWriter, r *http.Request) {
+	if s.opt.Rename == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "rename unsupported"})
+		return
+	}
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad request"})
+		return
+	}
+	name, err := s.opt.Rename(req.Name)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"name": name})
 }
 
 // localIP returns the primary LAN IPv4 chosen by the routing table, falling back

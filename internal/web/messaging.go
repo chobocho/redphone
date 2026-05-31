@@ -42,7 +42,7 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 	ts := s.now()
 	note := message.Note{
 		FromID: s.opt.SelfID,
-		From:   s.opt.Name,
+		From:   s.selfName(),
 		Text:   req.Text,
 		TS:     ts,
 	}
@@ -71,7 +71,7 @@ func (s *Server) handleBroadcast(w http.ResponseWriter, r *http.Request) {
 	ts := s.now()
 	note := message.Note{
 		FromID: s.opt.SelfID,
-		From:   s.opt.Name,
+		From:   s.selfName(),
 		Text:   req.Text,
 		TS:     ts,
 	}

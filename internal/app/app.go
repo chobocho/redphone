@@ -38,6 +38,7 @@ const (
 	sweepInterval  = 3 * time.Second
 	shutdownGrace  = 3 * time.Second
 	instanceIDFile = "redphone.id"
+	nameFile       = "redphone-name.txt"
 )
 
 // Config holds the runtime knobs for a RedPhone instance.
@@ -50,6 +51,7 @@ type Config struct {
 	OpenBrowser    bool      // 기동 시 기본 브라우저 자동 오픈
 	ScanAll        bool      // true면 주기적으로 서브넷 전체에 유니캐스트 HELLO 스캔
 	InstanceIDPath string    // 안정 논리 ID 파일 경로; ""이면 실행 파일 옆 redphone.id
+	NamePath       string    // 표시 이름 저장 경로; ""이면 실행 파일 옆 redphone-name.txt
 	Stdin          io.Reader // 테스트 주입용; nil이면 os.Stdin
 	OnReady        func(httpURL string)
 }
@@ -67,6 +69,11 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("app: stable id: %w", err)
 	}
+	initialName, err := loadSavedName(cfg.NamePath, cfg.Name)
+	if err != nil {
+		return fmt.Errorf("app: load name: %w", err)
+	}
+	nameState := newNameState(cfg.NamePath, initialName)
 
 	// ---- 상태/저장소 ----
 	reg := peer.NewRegistry()
@@ -85,7 +92,7 @@ func Run(ctx context.Context, cfg Config) error {
 
 	// ---- TLS 식별자(self-signed + 지문) ----
 	// WHY: HELLO에 광고할 지문이 먼저 정해져야 두 리스너가 일관된다.
-	id, err := tlsid.Generate(cfg.Name)
+	id, err := tlsid.Generate(nameState.Get())
 	if err != nil {
 		return fmt.Errorf("app: tls identity: %w", err)
 	}
@@ -112,7 +119,7 @@ func Run(ctx context.Context, cfg Config) error {
 		dport = discovery.Port
 	}
 	dsvc := &discovery.Service{
-		SelfID: runtimeID, SelfUID: stableID, Name: cfg.Name,
+		SelfID: runtimeID, SelfUID: stableID, Name: nameState.Get(),
 		HTTPPort: httpPort, HTTPSPort: httpsPort, FP: id.Fingerprint,
 		Port: dport, ScanOnStart: cfg.ScanAll,
 	}
@@ -132,9 +139,19 @@ func Run(ctx context.Context, cfg Config) error {
 	tctl := &targetControl{svc: dsvc, path: pbPath}
 
 	srv := web.New(web.Options{
-		Reg:         reg,
-		SelfID:      stableID,
-		Name:        cfg.Name,
+		Reg:     reg,
+		SelfID:  stableID,
+		Name:    nameState.Get(),
+		NameGet: nameState.Get,
+		Rename: func(next string) (string, error) {
+			name, err := nameState.Set(next)
+			if err != nil {
+				return "", err
+			}
+			dsvc.SetName(name)
+			dsvc.AdvertiseNow()
+			return name, nil
+		},
 		History:     hist,
 		Shares:      shares,
 		DownloadDir: "downloads",
@@ -193,7 +210,7 @@ func Run(ctx context.Context, cfg Config) error {
 
 	httpURL := fmt.Sprintf("http://localhost:%d", httpPort)
 	slog.Info("redphone up",
-		"name", cfg.Name, "runtime_id", runtimeID, "stable_id", stableID, "ui", httpURL,
+		"name", nameState.Get(), "runtime_id", runtimeID, "stable_id", stableID, "ui", httpURL,
 		"discovery", dport, "https", httpsPort, "fp", id.Fingerprint[:12])
 	if cfg.OnReady != nil {
 		cfg.OnReady(httpURL)
@@ -282,6 +299,13 @@ func defaultInstanceIDPath() string {
 	return instanceIDFile
 }
 
+func defaultNamePath() string {
+	if exe, err := os.Executable(); err == nil {
+		return filepath.Join(filepath.Dir(exe), nameFile)
+	}
+	return nameFile
+}
+
 func loadOrCreateStableID(path string) (string, error) {
 	if path == "" {
 		path = defaultInstanceIDPath()
@@ -304,6 +328,58 @@ func loadOrCreateStableID(path string) (string, error) {
 		return "", err
 	}
 	return id, nil
+}
+
+func loadSavedName(path, fallback string) (string, error) {
+	if path == "" {
+		path = defaultNamePath()
+	}
+	if b, err := os.ReadFile(path); err == nil {
+		if name := strings.TrimSpace(string(b)); name != "" {
+			return name, nil
+		}
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return strings.TrimSpace(fallback), nil
+}
+
+type nameState struct {
+	mu   sync.RWMutex
+	path string
+	name string
+}
+
+func newNameState(path, initial string) *nameState {
+	if path == "" {
+		path = defaultNamePath()
+	}
+	return &nameState{path: path, name: strings.TrimSpace(initial)}
+}
+
+func (s *nameState) Get() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.name
+}
+
+func (s *nameState) Set(next string) (string, error) {
+	next = strings.TrimSpace(next)
+	if next == "" {
+		return "", fmt.Errorf("name required")
+	}
+	tmp := s.path + ".tmp"
+	if err := os.WriteFile(tmp, []byte(next+"\n"), 0o600); err != nil {
+		return "", err
+	}
+	if err := os.Rename(tmp, s.path); err != nil {
+		_ = os.Remove(tmp)
+		return "", err
+	}
+	s.mu.Lock()
+	s.name = next
+	s.mu.Unlock()
+	return next, nil
 }
 
 // watchStdin reads console lines and cancels on a bare "exit".

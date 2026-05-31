@@ -44,7 +44,24 @@ func (f *fakeTargets) Targets() []string     { return f.ips }
 func (f *fakeTargets) ScanLAN() (int, error) { return f.scanN, f.scanErr }
 
 func targetServer(ft *fakeTargets) *Server {
-	return New(Options{Reg: peer.NewRegistry(), SelfID: "self", Name: "tester", Targets: ft})
+	name := "tester"
+	return New(Options{
+		Reg:    peer.NewRegistry(),
+		SelfID: "self",
+		Name:   name,
+		NameGet: func() string {
+			return name
+		},
+		Rename: func(next string) (string, error) {
+			next = strings.TrimSpace(next)
+			if next == "" {
+				return "", errors.New("name required")
+			}
+			name = next
+			return name, nil
+		},
+		Targets: ft,
+	})
 }
 
 func doReq(s *Server, method, path, body string) *httptest.ResponseRecorder {
@@ -154,6 +171,24 @@ func TestSelfReportsName(t *testing.T) {
 	}
 	if got.Name != "tester" {
 		t.Errorf("name = %q, want tester", got.Name)
+	}
+}
+
+func TestRenameSelf(t *testing.T) {
+	srv := targetServer(&fakeTargets{})
+	rec := doReq(srv, http.MethodPut, "/api/self/name", `{"name":"renamed"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (%s)", rec.Code, rec.Body)
+	}
+	self := doReq(srv, http.MethodGet, "/api/self", "")
+	var got struct {
+		Name string
+	}
+	if err := json.Unmarshal(self.Body.Bytes(), &got); err != nil {
+		t.Fatalf("bad json: %v", err)
+	}
+	if got.Name != "renamed" {
+		t.Fatalf("name = %q, want renamed", got.Name)
 	}
 }
 

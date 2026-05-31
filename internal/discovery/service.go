@@ -45,6 +45,29 @@ type Service struct {
 	conn    net.PacketConn      // Run 동안만 유효; AddTarget/ScanLAN의 즉시 송신용
 }
 
+func (s *Service) SetName(name string) {
+	s.mu.Lock()
+	s.Name = name
+	s.mu.Unlock()
+}
+
+func (s *Service) currentName() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Name
+}
+
+// AdvertiseNow sends an immediate HELLO using the live socket, if any.
+func (s *Service) AdvertiseNow() {
+	s.mu.Lock()
+	conn := s.conn
+	s.mu.Unlock()
+	if conn == nil {
+		return
+	}
+	s.advertise(conn, &net.UDPAddr{IP: net.IPv4bcast, Port: s.port()})
+}
+
 // Handlers receives decoded, self-filtered discovery events. ip는 항상
 // 패킷 출발지 주소에서 온 값이다(페이로드의 ip는 신뢰하지 않음).
 type Handlers struct {
@@ -201,7 +224,7 @@ func (s *Service) scanLoop(ctx context.Context, conn net.PacketConn) {
 }
 
 func (s *Service) sendHello(conn net.PacketConn, dst net.Addr) {
-	m := Hello(s.SelfID, s.Name, s.HTTPPort, s.HTTPSPort, s.FP, s.now())
+	m := Hello(s.SelfID, s.currentName(), s.HTTPPort, s.HTTPSPort, s.FP, s.now())
 	if s.SelfUID != "" {
 		m.UID = s.SelfUID
 	}
@@ -224,7 +247,7 @@ func (s *Service) sendBye(conn net.PacketConn, dst net.Addr) {
 
 // sendHelloReply unicasts a one-shot HELLO (reply=true) back to a probing peer.
 func (s *Service) sendHelloReply(conn net.PacketConn, addr net.Addr) {
-	m := Hello(s.SelfID, s.Name, s.HTTPPort, s.HTTPSPort, s.FP, s.now())
+	m := Hello(s.SelfID, s.currentName(), s.HTTPPort, s.HTTPSPort, s.FP, s.now())
 	if s.SelfUID != "" {
 		m.UID = s.SelfUID
 	}
@@ -236,7 +259,7 @@ func (s *Service) sendHelloReply(conn net.PacketConn, addr net.Addr) {
 
 // unicastHello sends a HELLO to a specific IP at the discovery port.
 func (s *Service) unicastHello(conn net.PacketConn, ip string, reply bool) {
-	m := Hello(s.SelfID, s.Name, s.HTTPPort, s.HTTPSPort, s.FP, s.now())
+	m := Hello(s.SelfID, s.currentName(), s.HTTPPort, s.HTTPSPort, s.FP, s.now())
 	if s.SelfUID != "" {
 		m.UID = s.SelfUID
 	}
@@ -248,11 +271,15 @@ func (s *Service) unicastHello(conn net.PacketConn, ip string, reply bool) {
 
 // unicastAddr builds the UDP destination for a manual/scan target.
 func (s *Service) unicastAddr(ip string) *net.UDPAddr {
+	return &net.UDPAddr{IP: net.ParseIP(ip), Port: s.port()}
+}
+
+func (s *Service) port() int {
 	port := s.Port
 	if port == 0 {
 		port = Port
 	}
-	return &net.UDPAddr{IP: net.ParseIP(ip), Port: port}
+	return port
 }
 
 // AddTarget registers a manual friend IP and probes it immediately if running.

@@ -484,6 +484,37 @@
     } catch {}
   }
 
+  async function renameSelf() {
+    const current = $("selfName").textContent === "connecting..." ? "" : $("selfName").textContent;
+    const result = await showDialog({
+      title: "이름 변경",
+      message: "피어에게 표시할 이름을 입력하세요.",
+      inputValue: current,
+      showInput: true,
+      confirmText: "저장",
+    });
+    if (!result.confirmed) return;
+    const name = (result.value || "").trim();
+    if (!name || name === current) return;
+
+    try {
+      const res = await fetch("/api/self/name", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await jsonOrNull(res);
+      if (!res.ok || !data) {
+        toast("이름 변경 실패: " + (data && data.error ? data.error : res.status));
+        return;
+      }
+      $("selfName").textContent = data.name || name;
+      toast("이름을 변경했습니다.");
+    } catch (err) {
+      toast("이름 변경 오류: " + err.message);
+    }
+  }
+
   async function loadHistory() {
     try {
       const res = await fetch("/api/history");
@@ -816,6 +847,7 @@
       e.target.value = "";
     });
     $("exitBtn").addEventListener("click", shutdown);
+    $("nameBtn").addEventListener("click", renameSelf);
     $("themeBtn").addEventListener("click", toggleTheme);
     $("clearBtn").addEventListener("click", clearConversation);
     $("menuBtn").addEventListener("click", openSide);
