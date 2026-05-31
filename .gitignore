@@ -19,6 +19,7 @@ peers.json
 *.db
 *.db-shm
 *.db-wal
+*.id
 
 # Script
 abuild.sh

@@ -5,16 +5,19 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/chobocho/redphone/internal/message"
 	"github.com/chobocho/redphone/internal/peer"
 	"github.com/chobocho/redphone/internal/tlsid"
 )
@@ -41,11 +44,11 @@ func multipartFile(t *testing.T, peerID, filename string, data []byte) (*bytes.B
 // startReceiverDual spins up B with HTTP and HTTPS on the same mux, returning
 // (ip, httpPort, httpsPort, fp, downloadDir). 같은 mux를 양쪽에 붙이는 이유:
 // requireTLS는 /inbox/file/announce만 막고 본문 PUT은 HTTP로 받아야 한다.
-func startReceiverDual(t *testing.T, ctx context.Context) (string, int, int, string, string, *Server) {
+func startReceiverDual(t *testing.T, ctx context.Context, hist *message.History) (string, int, int, string, string, *Server) {
 	t.Helper()
 	tid, _ := tlsid.Generate("bob")
 	dir := t.TempDir()
-	srv := New(Options{Reg: peer.NewRegistry(), SelfID: "B", Name: "bob", DownloadDir: dir})
+	srv := New(Options{Reg: peer.NewRegistry(), SelfID: "B", Name: "bob", DownloadDir: dir, History: hist})
 	go srv.Hub().Run(ctx)
 
 	tsHTTPS := httptest.NewUnstartedServer(srv.Handler())
@@ -66,7 +69,7 @@ func TestSendFileRoundTripSHA256(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	bIP, bHTTP, bHTTPS, bFP, bDir, _ := startReceiverDual(t, ctx)
+	bIP, bHTTP, bHTTPS, bFP, bDir, _ := startReceiverDual(t, ctx, nil)
 
 	aReg := peer.NewRegistry()
 	aSrv := New(Options{Reg: aReg, SelfID: "A", Name: "alice"})
@@ -105,13 +108,90 @@ func TestSendFileRoundTripSHA256(t *testing.T) {
 	}
 }
 
+func TestSendFileAddsOpenLinkAndTransferStatsToReceiverHistory(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	bHist := message.NewHistory()
+	defer bHist.Close()
+	bIP, bHTTP, bHTTPS, bFP, _, _ := startReceiverDual(t, ctx, bHist)
+
+	aReg := peer.NewRegistry()
+	aSrv := New(Options{Reg: aReg, SelfID: "A", Name: "alice"})
+	aTS := httptest.NewServer(aSrv.Handler())
+	defer aTS.Close()
+
+	aReg.Upsert(peer.Peer{
+		ID: "B", Name: "bob", IP: bIP,
+		HTTPPort: bHTTP, HTTPSPort: bHTTPS, Fingerprint: bFP,
+	})
+
+	body, ct := multipartFile(t, "B", "report.txt", []byte("hello receiver"))
+	resp, err := http.Post(aTS.URL+"/api/sendfile", ct, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("sendfile status = %d", resp.StatusCode)
+	}
+
+	var out struct {
+		Entry *message.Entry `json:"entry"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Entry == nil {
+		t.Fatal("sender response entry missing")
+	}
+	if !strings.Contains(out.Entry.Text, "파일 전송: report.txt") {
+		t.Fatalf("sender entry missing filename: %q", out.Entry.Text)
+	}
+	if !strings.Contains(out.Entry.Text, "소요 시간:") || !strings.Contains(out.Entry.Text, "평균 속도:") {
+		t.Fatalf("sender entry missing transfer stats: %q", out.Entry.Text)
+	}
+
+	waitFor(t, func() bool { return len(mustEntries(t, bHist)) == 1 })
+	got := mustEntries(t, bHist)[0]
+	if got.PeerID != "A" || got.Dir != "in" || got.FromID != "A" || got.From != "alice" {
+		t.Fatalf("unexpected receiver entry meta: %+v", got)
+	}
+	openURL := "http://" + bIP + ":" + strconv.Itoa(bHTTP) + "/downloads/report.txt"
+	if !strings.Contains(got.Text, "파일 수신: report.txt") {
+		t.Fatalf("receiver entry missing filename: %q", got.Text)
+	}
+	if !strings.Contains(got.Text, "열기: "+openURL) {
+		t.Fatalf("receiver entry missing open link: %q", got.Text)
+	}
+	if !strings.Contains(got.Text, "소요 시간:") || !strings.Contains(got.Text, "평균 속도:") {
+		t.Fatalf("receiver entry missing transfer stats: %q", got.Text)
+	}
+
+	dlResp, err := http.Get(openURL)
+	if err != nil {
+		t.Fatalf("download link request: %v", err)
+	}
+	defer dlResp.Body.Close()
+	if dlResp.StatusCode != http.StatusOK {
+		t.Fatalf("download status = %d", dlResp.StatusCode)
+	}
+	bodyBytes, err := io.ReadAll(dlResp.Body)
+	if err != nil {
+		t.Fatalf("download read: %v", err)
+	}
+	if string(bodyBytes) != "hello receiver" {
+		t.Fatalf("download body mismatch: %q", bodyBytes)
+	}
+}
+
 // 경로 탈출 파일명은 downloads 밖으로 나가면 안 된다.
 // announce에서 파일명을 수신해 저장 측에서 SafeName으로 정화한다.
 func TestInboxFileBlocksPathEscape(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	bIP, bHTTP, bHTTPS, bFP, bDir, _ := startReceiverDual(t, ctx)
+	bIP, bHTTP, bHTTPS, bFP, bDir, _ := startReceiverDual(t, ctx, nil)
 
 	aReg := peer.NewRegistry()
 	aReg.Upsert(peer.Peer{ID: "B", Name: "bob", IP: bIP, HTTPPort: bHTTP, HTTPSPort: bHTTPS, Fingerprint: bFP})
@@ -161,10 +241,24 @@ func TestInboxFileBodyRejectsUnknownToken(t *testing.T) {
 	}
 }
 
+func TestDownloadRejectsPathEscape(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "safe.txt"), []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := New(Options{Reg: peer.NewRegistry(), SelfID: "B", Name: "bob", DownloadDir: dir})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/downloads/%2e%2e%5csecret.txt", nil)
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("want 400 for escaped download path, got %d", rec.Code)
+	}
+}
+
 // 토큰은 1회용 — 같은 토큰으로 두 번 PUT하면 두 번째는 404.
 func TestUploadTokenIsSingleUse(t *testing.T) {
 	store := newUploadStore()
-	tok, err := store.reserve("hello.txt")
+	tok, err := store.reserve(fileAnnounce{Filename: "hello.txt"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +277,7 @@ func TestUploadTokenExpires(t *testing.T) {
 	store.nowFn = func() time.Time { return now }
 	store.ttl = 50 * time.Millisecond
 
-	tok, _ := store.reserve("x.bin")
+	tok, _ := store.reserve(fileAnnounce{Filename: "x.bin"})
 	now = now.Add(time.Second) // 시계를 TTL 너머로
 	if _, ok := store.claim(tok); ok {
 		t.Fatal("expired token should not claim")

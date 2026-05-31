@@ -93,6 +93,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /inbox/message", requireTLS(s.handleInboxMessage))
 	mux.HandleFunc("POST /inbox/file/announce", requireTLS(s.handleInboxFileAnnounce))
 	mux.HandleFunc("PUT /inbox/file/{token}", s.handleInboxFileBody)
+	mux.HandleFunc("GET /downloads/{name}", s.handleDownload)
 	mux.HandleFunc("GET /api/targets", s.handleListTargets)
 	mux.HandleFunc("POST /api/targets", s.handleAddTarget)
 	mux.HandleFunc("PUT /api/targets", s.handleEditTarget)
