@@ -16,6 +16,7 @@ import (
 func main() {
 	name := flag.String("name", defaultName(), "표시 이름")
 	port := flag.Int("port", 17080, "HTTP 포트(사용 중이면 OS 자동 폴백)")
+	sport := flag.Int("sport", 17443, "HTTPS 포트(쪽지·파일메타 전용, 사용 중이면 OS 자동 폴백)")
 	dport := flag.Int("dport", 17000, "Discovery UDP 포트")
 	open := flag.Bool("open", true, "기동 시 기본 브라우저 자동 오픈")
 	flag.Parse()
@@ -23,6 +24,7 @@ func main() {
 	if err := app.Run(context.Background(), app.Config{
 		Name:          *name,
 		HTTPPort:      *port,
+		HTTPSPort:     *sport,
 		DiscoveryPort: *dport,
 		OpenBrowser:   *open,
 	}); err != nil {

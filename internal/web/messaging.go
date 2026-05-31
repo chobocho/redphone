@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/chobocho/redphone/internal/message"
+	"github.com/chobocho/redphone/internal/tlsid"
 )
 
 const peerRequestTimeout = 5 * time.Second
@@ -46,8 +47,8 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 		Text:   req.Text,
 		TS:     s.now(),
 	}
-	url := fmt.Sprintf("http://%s:%d/inbox/message", p.IP, p.HTTPPort)
-	if err := s.postJSON(r.Context(), url, note); err != nil {
+	url := fmt.Sprintf("https://%s:%d/inbox/message", p.IP, p.HTTPSPort)
+	if err := s.postJSONTLS(r.Context(), url, p.Fingerprint, note); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "delivery failed"})
 		return
 	}
@@ -76,8 +77,8 @@ func (s *Server) handleBroadcast(w http.ResponseWriter, r *http.Request) {
 	peers := s.opt.Reg.Snapshot()
 	sent, failed := 0, 0
 	for _, p := range peers {
-		url := fmt.Sprintf("http://%s:%d/inbox/message", p.IP, p.HTTPPort)
-		if err := s.postJSON(r.Context(), url, note); err != nil {
+		url := fmt.Sprintf("https://%s:%d/inbox/message", p.IP, p.HTTPSPort)
+		if err := s.postJSONTLS(r.Context(), url, p.Fingerprint, note); err != nil {
 			failed++
 		} else {
 			sent++
@@ -109,8 +110,13 @@ func (s *Server) handleHistory(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, notes)
 }
 
-// postJSON POSTs v as JSON to url with a bounded timeout.
-func (s *Server) postJSON(ctx context.Context, url string, v any) error {
+// postJSONTLS POSTs v as JSON to a peer URL using a fingerprint-pinned
+// TLS client. fp가 비어 있으면 송신을 거부한다 — 핀닝 없는 TLS는 MITM에
+// 무방어이므로 v1(레거시) 피어로의 송신을 명시적으로 막는다.
+func (s *Server) postJSONTLS(ctx context.Context, url, fp string, v any) error {
+	if fp == "" {
+		return fmt.Errorf("peer has no fingerprint (legacy/v1)")
+	}
 	body, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -122,7 +128,7 @@ func (s *Server) postJSON(ctx context.Context, url string, v any) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := s.client().Do(req)
+	resp, err := s.peerTLS(fp).Do(req)
 	if err != nil {
 		return err
 	}
@@ -145,6 +151,19 @@ func (s *Server) client() *http.Client {
 		return s.opt.Client
 	}
 	return http.DefaultClient
+}
+
+// peerTLS returns a fingerprint-pinned HTTPS client for outbound peer calls.
+// 옵션 주입이 없으면 매 호출마다 임시 클라이언트를 만든다 — 핀이 피어마다
+// 다르므로 전역 캐시는 의미가 작고, 코드 단순성을 우선.
+func (s *Server) peerTLS(fp string) *http.Client {
+	if s.opt.PeerTLS != nil {
+		return s.opt.PeerTLS(fp)
+	}
+	return &http.Client{
+		Timeout:   peerRequestTimeout,
+		Transport: &http.Transport{TLSClientConfig: tlsid.PinnedClientConfig(fp)},
+	}
 }
 
 func (s *Server) now() int64 {

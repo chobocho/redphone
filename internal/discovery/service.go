@@ -13,11 +13,13 @@ const defaultInterval = 5 * time.Second
 
 // Service broadcasts this instance's HELLO and listens for peers' HELLO/BYE.
 type Service struct {
-	SelfID   string
-	Name     string
-	HTTPPort int
-	Interval time.Duration // 0 → 5s
-	NowMs    func() int64  // 테스트 주입용; 0이면 wall clock
+	SelfID    string
+	Name      string
+	HTTPPort  int
+	HTTPSPort int           // v2: 메시지/파일메타 TLS 포트
+	FP        string        // v2: 우리 leaf cert SHA-256 hex
+	Interval  time.Duration // 0 → 5s
+	NowMs     func() int64  // 테스트 주입용; 0이면 wall clock
 }
 
 // Handlers receives decoded, self-filtered discovery events. ip는 항상
@@ -124,7 +126,7 @@ func (s *Service) broadcast(ctx context.Context, conn net.PacketConn, dst net.Ad
 }
 
 func (s *Service) sendHello(conn net.PacketConn, dst net.Addr) {
-	if b, err := Hello(s.SelfID, s.Name, s.HTTPPort, s.now()).Encode(); err == nil {
+	if b, err := Hello(s.SelfID, s.Name, s.HTTPPort, s.HTTPSPort, s.FP, s.now()).Encode(); err == nil {
 		_, _ = conn.WriteTo(b, dst)
 	}
 }

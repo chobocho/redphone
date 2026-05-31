@@ -27,6 +27,7 @@ import (
 	"github.com/chobocho/redphone/internal/message"
 	"github.com/chobocho/redphone/internal/peer"
 	"github.com/chobocho/redphone/internal/share"
+	"github.com/chobocho/redphone/internal/tlsid"
 	"github.com/chobocho/redphone/internal/web"
 )
 
@@ -40,6 +41,7 @@ const (
 type Config struct {
 	Name          string    // 화면에 표시될 사용자 이름
 	HTTPPort      int       // 우선 HTTP 포트(사용 중이면 OS 자동 폴백)
+	HTTPSPort     int       // 우선 HTTPS 포트(사용 중이면 OS 자동 폴백)
 	DiscoveryPort int       // 0 → discovery.Port(17000)
 	OpenBrowser   bool      // 기동 시 기본 브라우저 자동 오픈
 	Stdin         io.Reader // 테스트 주입용; nil이면 os.Stdin
@@ -67,12 +69,27 @@ func Run(ctx context.Context, cfg Config) error {
 	shares := share.NewStore(shareDir)
 	defer shares.RemoveAll()
 
+	// ---- TLS 식별자(self-signed + 지문) ----
+	// WHY: HELLO에 광고할 지문이 먼저 정해져야 두 리스너가 일관된다.
+	id, err := tlsid.Generate(cfg.Name)
+	if err != nil {
+		return fmt.Errorf("app: tls identity: %w", err)
+	}
+
 	// ---- HTTP 리스너(포트 폴백) ----
 	ln, err := web.Listen(cfg.HTTPPort)
 	if err != nil {
 		return fmt.Errorf("app: http listen: %w", err)
 	}
 	httpPort := ln.Addr().(*net.TCPAddr).Port
+
+	// ---- HTTPS 리스너(포트 폴백) ----
+	lnTLS, err := web.ListenTLS(cfg.HTTPSPort, id.ServerTLSConfig())
+	if err != nil {
+		_ = ln.Close()
+		return fmt.Errorf("app: https listen: %w", err)
+	}
+	httpsPort := lnTLS.Addr().(*net.TCPAddr).Port
 
 	srv := web.New(web.Options{
 		Reg:         reg,
@@ -93,9 +110,13 @@ func Run(ctx context.Context, cfg Config) error {
 	dconn, dst, err := discovery.Open(dport)
 	if err != nil {
 		_ = ln.Close()
+		_ = lnTLS.Close()
 		return fmt.Errorf("app: discovery open: %w", err)
 	}
-	dsvc := &discovery.Service{SelfID: selfID, Name: cfg.Name, HTTPPort: httpPort}
+	dsvc := &discovery.Service{
+		SelfID: selfID, Name: cfg.Name,
+		HTTPPort: httpPort, HTTPSPort: httpsPort, FP: id.Fingerprint,
+	}
 
 	// 피어 목록 변동을 브라우저로 실시간 푸시.
 	pushPeers := func() {
@@ -111,7 +132,11 @@ func Run(ctx context.Context, cfg Config) error {
 	spawn(func() {
 		_ = dsvc.Run(ctx, dconn, dst, discovery.Handlers{
 			OnHello: func(m discovery.Message, ip string) {
-				reg.Upsert(peer.Peer{ID: m.ID, Name: m.Name, IP: ip, HTTPPort: m.HTTPPort})
+				reg.Upsert(peer.Peer{
+					ID: m.ID, Name: m.Name, IP: ip,
+					HTTPPort: m.HTTPPort, HTTPSPort: m.HTTPSPort,
+					Fingerprint: m.FP,
+				})
 				pushPeers()
 			},
 			OnBye: func(id string) { reg.Remove(id); pushPeers() },
@@ -122,11 +147,17 @@ func Run(ctx context.Context, cfg Config) error {
 	httpSrv := &http.Server{Handler: srv.Handler()}
 	spawn(func() { _ = httpSrv.Serve(ln) }) // 종료 시 ErrServerClosed로 반환
 
+	// HTTPS 서버는 같은 mux를 공유한다 — requireTLS 가드가 분기를 책임진다.
+	httpsSrv := &http.Server{Handler: srv.Handler(), TLSConfig: id.ServerTLSConfig()}
+	spawn(func() { _ = httpsSrv.Serve(lnTLS) })
+
 	// stdin 감시는 detached daemon(블로킹 ReadFrom을 기다리지 않음).
 	go watchStdin(ctx, stdinOf(cfg), cancel)
 
 	httpURL := fmt.Sprintf("http://localhost:%d", httpPort)
-	slog.Info("redphone up", "name", cfg.Name, "id", selfID, "ui", httpURL, "discovery", dport)
+	slog.Info("redphone up",
+		"name", cfg.Name, "id", selfID, "ui", httpURL,
+		"discovery", dport, "https", httpsPort, "fp", id.Fingerprint[:12])
 	if cfg.OnReady != nil {
 		cfg.OnReady(httpURL)
 	}
@@ -138,9 +169,10 @@ func Run(ctx context.Context, cfg Config) error {
 
 	// ---- graceful shutdown ----
 	// ① BYE 브로드캐스트 + discovery 정리는 dsvc.Run이 ctx.Done에서 수행한다.
-	// ② HTTP 서버를 3초 타임아웃으로 정지.
+	// ② HTTP·HTTPS 서버를 3초 타임아웃 안에 동시에 정지.
 	shCtx, shCancel := context.WithTimeout(context.Background(), shutdownGrace)
 	_ = httpSrv.Shutdown(shCtx)
+	_ = httpsSrv.Shutdown(shCtx)
 	shCancel()
 	// ③ hub/ticker는 ctx.Done로 이미 멈춘다. ④ 전부 합류.
 	wg.Wait()

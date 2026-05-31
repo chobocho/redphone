@@ -13,11 +13,13 @@ import (
 
 // Peer is one discovered instance on the LAN.
 type Peer struct {
-	ID       string    `json:"id"`
-	Name     string    `json:"name"`
-	IP       string    `json:"ip"`       // UDP 패킷 src addr에서 취득(페이로드 신뢰 금지)
-	HTTPPort int       `json:"httpPort"` // 쪽지/파일 중계를 위한 상대 HTTP 포트
-	LastSeen time.Time `json:"lastSeen"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	IP          string    `json:"ip"`        // UDP 패킷 src addr에서 취득(페이로드 신뢰 금지)
+	HTTPPort    int       `json:"httpPort"`  // 파일 본문(평문)·UI 정적 자원용
+	HTTPSPort   int       `json:"httpsPort"` // 쪽지·파일메타(TLS 핀닝) 전용
+	Fingerprint string    `json:"fp"`        // HELLO로 광고된 leaf cert SHA-256 hex
+	LastSeen    time.Time `json:"lastSeen"`
 }
 
 // Registry is a concurrency-safe set of peers keyed by ID.

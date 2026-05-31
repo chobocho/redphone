@@ -84,10 +84,10 @@ func TestListenExtractsIPFromSrcAddrAndFiltersSelf(t *testing.T) {
 	}()
 
 	// 자기 자신의 HELLO → 필터링되어 콜백 없음.
-	self, _ := Hello("me", "me", 17080, 1).Encode()
+	self, _ := Hello("me", "me", 17080, 17443, "fp-self", 1).Encode()
 	conn.in <- rxPacket{self, udpAddr("10.0.0.1")}
 	// 피어의 HELLO → ip는 페이로드가 아니라 src addr(10.0.0.5)에서.
-	other, _ := Hello("peerB", "bravo", 17081, 2).Encode()
+	other, _ := Hello("peerB", "bravo", 17081, 17444, "fp-peer", 2).Encode()
 	conn.in <- rxPacket{other, udpAddr("10.0.0.5")}
 	// 깨진 패킷 → 무시(크래시 없음).
 	conn.in <- rxPacket{[]byte("garbage"), udpAddr("10.0.0.9")}
@@ -126,7 +126,7 @@ func TestListenRoutesBye(t *testing.T) {
 
 func TestBroadcastSendsHelloImmediately(t *testing.T) {
 	conn := newFakeConn()
-	svc := &Service{SelfID: "me", Name: "alice", HTTPPort: 17080, Interval: time.Hour}
+	svc := &Service{SelfID: "me", Name: "alice", HTTPPort: 17080, HTTPSPort: 17443, FP: "fp-me", Interval: time.Hour}
 	ctx, cancel := context.WithCancel(context.Background())
 	go svc.broadcast(ctx, conn, udpAddr("255.255.255.255"))
 
@@ -149,7 +149,8 @@ func TestBroadcastSendsHelloImmediately(t *testing.T) {
 	if err != nil {
 		t.Fatalf("broadcast payload not decodable: %v", err)
 	}
-	if m.Type != TypeHello || m.ID != "me" || m.Name != "alice" || m.HTTPPort != 17080 {
+	if m.Type != TypeHello || m.ID != "me" || m.Name != "alice" || m.HTTPPort != 17080 ||
+		m.HTTPSPort != 17443 || m.FP != "fp-me" {
 		t.Fatalf("unexpected hello: %+v", m)
 	}
 }
