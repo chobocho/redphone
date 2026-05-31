@@ -3,37 +3,39 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>RedPhone ☎</title>
+<title>RedPhone</title>
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 <div class="app">
-  <!-- ===== Sidebar: peers ===== -->
   <aside class="side" id="side">
     <header class="brand">
-      <div class="phone" id="ring">☎</div>
+      <div class="phone" id="ring">RP</div>
       <div class="who">
         <h1>RedPhone</h1>
-        <small id="selfName">connecting…</small>
+        <small id="selfName">connecting...</small>
       </div>
-      <button class="exit" id="exitBtn" title="종료">⏻ 종료</button>
+      <div class="brand-actions">
+        <button class="theme-toggle" id="themeBtn" title="테마 전환">화이트</button>
+        <button class="exit" id="exitBtn" title="종료">종료</button>
+      </div>
     </header>
 
-    <div class="conn"><span class="led" id="wsLed"></span><span id="wsState">연결 중…</span></div>
+    <div class="conn"><span class="led" id="wsLed"></span><span id="wsState">연결 중...</span></div>
 
     <div class="sec-label">피어 <span class="count" id="peerCount">0</span></div>
     <ul class="peers" id="peers"></ul>
-    <p class="empty" id="peersEmpty">같은 LAN의 RedPhone을 찾는 중…</p>
+    <p class="empty" id="peersEmpty">같은 LAN의 RedPhone을 찾는 중입니다.</p>
 
-    <div class="sec-label">친구 IP <button class="scan" id="scanBtn" title="서브넷 전체에 HELLO를 뿌려 검색">🔍 전체 스캔</button></div>
+    <div class="sec-label">친구 IP <button class="scan" id="scanBtn" title="서브넷 전체에 HELLO를 보냅니다">전체 스캔</button></div>
     <div class="ipbox">
-      <div class="myip" id="myip" hidden>내 IP <code id="myipVal">—</code><button class="copy" id="myipCopy" title="복사">복사</button></div>
+      <div class="myip" id="myip" hidden>내 IP <code id="myipVal"></code><button class="copy" id="myipCopy" title="복사">복사</button></div>
       <div class="iprow">
         <input type="text" id="ipInput" placeholder="예: 192.168.0.42" autocomplete="off" inputmode="decimal" />
         <button id="ipAddBtn">추가</button>
       </div>
       <ul class="targets" id="targets"></ul>
-      <p class="empty" id="targetsEmpty">브로드캐스트가 막히면 친구 IP를 직접 추가하세요.</p>
+      <p class="empty" id="targetsEmpty">브로드캐스트가 막힌 망이면 친구 IP를 직접 추가하세요.</p>
     </div>
 
     <div class="sec-label">URL 공유</div>
@@ -45,27 +47,29 @@
     </div>
   </aside>
 
-  <!-- ===== Main: conversation ===== -->
   <main class="main">
-    <button class="menu" id="menuBtn">☰</button>
+    <button class="menu" id="menuBtn">메뉴</button>
     <header class="chat-head">
       <span class="led" id="peerLed"></span>
-      <strong id="chatTitle">피어를 선택하세요</strong>
-      <span class="peer-ip" id="chatIP"></span>
+      <div class="chat-meta">
+        <strong id="chatTitle">피어를 선택하세요</strong>
+        <span class="peer-ip" id="chatIP"></span>
+      </div>
+      <button class="ghost danger" id="clearBtn" disabled>대화 삭제</button>
     </header>
 
     <section class="log" id="log">
       <div class="placeholder" id="placeholder">
-        <div class="big">☎</div>
-        <p>왼쪽에서 피어를 골라 쪽지를 보내세요.<br />같은 네트워크면 자동으로 나타납니다.</p>
+        <div class="big">RP</div>
+        <p>왼쪽에서 피어를 고르면 대화를 볼 수 있습니다.<br />브라우저를 다시 열어도 히스토리는 유지됩니다.</p>
       </div>
     </section>
 
     <footer class="composer" id="composer" hidden>
-      <label class="attach" title="파일 전송">📎
+      <label class="attach" title="파일 전송">파일
         <input type="file" id="fileInput" hidden />
       </label>
-      <input type="text" id="text" placeholder="메시지 입력 후 Enter…" autocomplete="off" />
+      <input type="text" id="text" placeholder="메시지를 입력하세요" autocomplete="off" />
       <button id="sendBtn">전송</button>
     </footer>
   </main>
@@ -73,7 +77,27 @@
 
 <div class="scrim" id="scrim"></div>
 <div class="toast" id="toast"></div>
-<div class="bye" id="bye" hidden><div class="big">☎</div><p>RedPhone이 종료되었습니다.<br />이 창을 닫아도 됩니다.</p></div>
+
+<div class="modal-layer" id="modalLayer" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <strong id="modalTitle">확인</strong>
+    </div>
+    <div class="modal-body">
+      <p id="modalMessage"></p>
+      <input type="text" id="modalInput" hidden autocomplete="off" />
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" id="modalCancel">취소</button>
+      <button class="primary" id="modalConfirm">확인</button>
+    </div>
+  </div>
+</div>
+
+<div class="bye" id="bye" hidden>
+  <div class="big">RP</div>
+  <p>RedPhone이 종료되었습니다.<br />창을 닫아도 됩니다.</p>
+</div>
 
 <script src="/app.js"></script>
 </body>

@@ -15,16 +15,14 @@ import (
 const peerRequestTimeout = 5 * time.Second
 
 // wsEvent is the envelope pushed to browsers over the hub.
-// type별로 payload 필드를 선택적으로 채운다(단일 채널, 다중 이벤트).
 type wsEvent struct {
-	Type string        `json:"type"`           // "message" | "file" | "peers" ...
-	Note *message.Note `json:"note,omitempty"` // type=="message"
-	Text string        `json:"text,omitempty"` // 일반 알림 텍스트
+	Type   string         `json:"type"`             // "entry" | "file" | "peers" | "history_cleared"
+	Entry  *message.Entry `json:"entry,omitempty"`  // type=="entry"
+	PeerID string         `json:"peerId,omitempty"` // type=="history_cleared"
+	Text   string         `json:"text,omitempty"`
 }
 
-// handleSend relays a note to the target peer's inbox.
-//
-// 흐름: 브라우저 → POST /api/send {peerId,text} → 상대 /inbox/message로 중계.
+// handleSend relays a note to the target peer's inbox and stores a local copy.
 func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		PeerID string `json:"peerId"`
@@ -36,30 +34,31 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 	}
 	p, ok := s.opt.Reg.Get(req.PeerID)
 	if !ok {
-		// 오프라인/미발견 → UI가 실패를 명시할 수 있게 404.
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "peer offline"})
 		return
 	}
 
+	ts := s.now()
 	note := message.Note{
 		FromID: s.opt.SelfID,
 		From:   s.opt.Name,
 		Text:   req.Text,
-		TS:     s.now(),
+		TS:     ts,
 	}
 	url := fmt.Sprintf("https://%s:%d/inbox/message", p.IP, p.HTTPSPort)
 	if err := s.postJSONTLS(r.Context(), url, p.Fingerprint, note); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "delivery failed"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
+	entry, err := s.persistEntry(message.Entry{PeerID: req.PeerID, Dir: "out", Text: req.Text, TS: ts})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "history failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"status": "sent", "entry": entry})
 }
 
-// handleBroadcast relays one note to every known peer (전체 쪽지) — the
-// signature feature of the original 빨간전화기.
-//
-// WHY: 한 명씩 고르지 않고 같은 LAN의 모든 인스턴스에 동시에 공지하는 용도.
-// 일부 피어가 오프라인이어도 나머지에는 전달되도록 실패는 집계만 한다.
+// handleBroadcast relays one note to every known peer and stores the local copy.
 func (s *Server) handleBroadcast(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Text string `json:"text"`
@@ -68,11 +67,12 @@ func (s *Server) handleBroadcast(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad request"})
 		return
 	}
+	ts := s.now()
 	note := message.Note{
 		FromID: s.opt.SelfID,
 		From:   s.opt.Name,
 		Text:   req.Text,
-		TS:     s.now(),
+		TS:     ts,
 	}
 	peers := s.opt.Reg.Snapshot()
 	sent, failed := 0, 0
@@ -84,7 +84,12 @@ func (s *Server) handleBroadcast(w http.ResponseWriter, r *http.Request) {
 			sent++
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]int{"sent": sent, "failed": failed})
+	entry, err := s.persistEntry(message.Entry{PeerID: message.BroadcastPeerID, Dir: "out", Text: req.Text, TS: ts})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "history failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sent": sent, "failed": failed, "entry": entry})
 }
 
 // handleInboxMessage receives a note from a peer, stores it, and pushes to UI.
@@ -94,25 +99,44 @@ func (s *Server) handleInboxMessage(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad request"})
 		return
 	}
-	if s.opt.History != nil {
-		s.opt.History.Add(note)
+	if _, err := s.addIncoming(note); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "history failed"})
+		return
 	}
-	s.pushEvent(wsEvent{Type: "message", Note: &note})
 	w.WriteHeader(http.StatusOK)
 }
 
-// handleHistory returns the in-memory note history for UI hydration.
+// handleHistory returns the persisted chat history for UI hydration.
 func (s *Server) handleHistory(w http.ResponseWriter, _ *http.Request) {
-	var notes []message.Note
+	var entries []message.Entry
 	if s.opt.History != nil {
-		notes = s.opt.History.All()
+		all, err := s.opt.History.All()
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "history failed"})
+			return
+		}
+		entries = all
 	}
-	writeJSON(w, http.StatusOK, notes)
+	writeJSON(w, http.StatusOK, entries)
 }
 
-// postJSONTLS POSTs v as JSON to a peer URL using a fingerprint-pinned
-// TLS client. fp가 비어 있으면 송신을 거부한다 — 핀닝 없는 TLS는 MITM에
-// 무방어이므로 v1(레거시) 피어로의 송신을 명시적으로 막는다.
+func (s *Server) handleDeleteHistory(w http.ResponseWriter, r *http.Request) {
+	peerID := r.PathValue("peerID")
+	if peerID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "peer id required"})
+		return
+	}
+	if s.opt.History != nil {
+		if err := s.opt.History.Clear(peerID); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "history failed"})
+			return
+		}
+	}
+	s.pushEvent(wsEvent{Type: "history_cleared", PeerID: peerID})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "cleared"})
+}
+
+// postJSONTLS POSTs v as JSON to a peer URL using a fingerprint-pinned TLS client.
 func (s *Server) postJSONTLS(ctx context.Context, url, fp string, v any) error {
 	if fp == "" {
 		return fmt.Errorf("peer has no fingerprint (legacy/v1)")
@@ -146,6 +170,40 @@ func (s *Server) pushEvent(ev wsEvent) {
 	}
 }
 
+func (s *Server) persistEntry(e message.Entry) (message.Entry, error) {
+	if s.opt.History == nil {
+		s.pushEvent(wsEvent{Type: "entry", Entry: &e})
+		return e, nil
+	}
+	saved, err := s.opt.History.AddEntry(e)
+	if err != nil {
+		return message.Entry{}, err
+	}
+	s.pushEvent(wsEvent{Type: "entry", Entry: &saved})
+	return saved, nil
+}
+
+func (s *Server) addIncoming(note message.Note) (message.Entry, error) {
+	if s.opt.History == nil {
+		entry := message.Entry{
+			PeerID: note.FromID,
+			Dir:    "in",
+			Text:   note.Text,
+			TS:     note.TS,
+			FromID: note.FromID,
+			From:   note.From,
+		}
+		s.pushEvent(wsEvent{Type: "entry", Entry: &entry})
+		return entry, nil
+	}
+	entry, err := s.opt.History.Add(note)
+	if err != nil {
+		return message.Entry{}, err
+	}
+	s.pushEvent(wsEvent{Type: "entry", Entry: &entry})
+	return entry, nil
+}
+
 func (s *Server) client() *http.Client {
 	if s.opt.Client != nil {
 		return s.opt.Client
@@ -154,8 +212,6 @@ func (s *Server) client() *http.Client {
 }
 
 // peerTLS returns a fingerprint-pinned HTTPS client for outbound peer calls.
-// 옵션 주입이 없으면 매 호출마다 임시 클라이언트를 만든다 — 핀이 피어마다
-// 다르므로 전역 캐시는 의미가 작고, 코드 단순성을 우선.
 func (s *Server) peerTLS(fp string) *http.Client {
 	if s.opt.PeerTLS != nil {
 		return s.opt.PeerTLS(fp)

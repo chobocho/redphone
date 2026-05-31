@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chobocho/redphone/internal/message"
 	"github.com/chobocho/redphone/internal/transfer"
 )
 
@@ -75,7 +76,13 @@ func (s *Server) handleSendFile(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "delivery failed"})
 				return
 			}
-			writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
+			entry, _ := s.persistEntry(message.Entry{
+				PeerID: peerID,
+				Dir:    "sys",
+				Text:   fmt.Sprintf("파일 전송: %s", filename),
+				TS:     s.now(),
+			})
+			writeJSON(w, http.StatusOK, map[string]any{"status": "sent", "entry": entry})
 			return
 		}
 	}

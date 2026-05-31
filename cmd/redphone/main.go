@@ -18,6 +18,7 @@ func main() {
 	port := flag.Int("port", 17080, "HTTP 포트(사용 중이면 OS 자동 폴백)")
 	sport := flag.Int("sport", 17443, "HTTPS 포트(쪽지·파일메타 전용, 사용 중이면 OS 자동 폴백)")
 	dport := flag.Int("dport", 17000, "Discovery UDP 포트")
+	dbPath := flag.String("db", "redphone.db", "SQLite 히스토리 DB 경로")
 	open := flag.Bool("open", true, "기동 시 기본 브라우저 자동 오픈")
 	scan := flag.Bool("scan", false, "서브넷 전체에 주기적 유니캐스트 HELLO 스캔(기본 꺼짐; 막히는 망 주의)")
 	flag.Parse()
@@ -27,6 +28,7 @@ func main() {
 		HTTPPort:      *port,
 		HTTPSPort:     *sport,
 		DiscoveryPort: *dport,
+		HistoryPath:   *dbPath,
 		OpenBrowser:   *open,
 		ScanAll:       *scan,
 	}); err != nil {

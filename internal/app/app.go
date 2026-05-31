@@ -44,6 +44,7 @@ type Config struct {
 	HTTPPort      int       // 우선 HTTP 포트(사용 중이면 OS 자동 폴백)
 	HTTPSPort     int       // 우선 HTTPS 포트(사용 중이면 OS 자동 폴백)
 	DiscoveryPort int       // 0 → discovery.Port(17000)
+	HistoryPath   string    // SQLite DB path; ""이면 redphone.db
 	OpenBrowser   bool      // 기동 시 기본 브라우저 자동 오픈
 	ScanAll       bool      // true면 주기적으로 서브넷 전체에 유니캐스트 HELLO 스캔
 	Stdin         io.Reader // 테스트 주입용; nil이면 os.Stdin
@@ -62,7 +63,11 @@ func Run(ctx context.Context, cfg Config) error {
 
 	// ---- 상태/저장소 ----
 	reg := peer.NewRegistry()
-	hist := message.NewHistory()
+	hist, err := message.Open(cfg.HistoryPath)
+	if err != nil {
+		return fmt.Errorf("app: history open: %w", err)
+	}
+	defer hist.Close()
 	shareDir, err := os.MkdirTemp("", "redphone-share-")
 	if err != nil {
 		return fmt.Errorf("app: share dir: %w", err)

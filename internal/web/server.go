@@ -81,6 +81,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/peers", s.handlePeers)
 	mux.HandleFunc("GET /api/self", s.handleSelf)
 	mux.HandleFunc("GET /api/history", s.handleHistory)
+	mux.HandleFunc("DELETE /api/history/{peerID}", s.handleDeleteHistory)
 	mux.HandleFunc("POST /api/send", s.handleSend)
 	mux.HandleFunc("POST /api/broadcast", s.handleBroadcast)
 	mux.HandleFunc("POST /api/sendfile", s.handleSendFile)
