@@ -81,6 +81,18 @@ func TestRemove(t *testing.T) {
 	r.Remove("ghost")
 }
 
+func TestRemoveSession(t *testing.T) {
+	r := NewRegistry()
+	r.Upsert(Peer{ID: "stable-a", SessionID: "sess-a", Name: "a"})
+	r.Upsert(Peer{ID: "stable-b", SessionID: "sess-b", Name: "b"})
+	r.RemoveSession("sess-a")
+
+	snap := r.Snapshot()
+	if len(snap) != 1 || snap[0].ID != "stable-b" {
+		t.Fatalf("unexpected peers after RemoveSession: %+v", snap)
+	}
+}
+
 // WHY: Snapshot은 내부 맵의 방어적 복사여야 한다. 반환값을 바꿔도
 // 레지스트리가 오염되면 안 된다.
 func TestSnapshotIsDefensiveCopy(t *testing.T) {

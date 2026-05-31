@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -22,14 +23,16 @@ func freeUDPPort(t *testing.T) int {
 }
 
 // testConfig returns a config bound to ephemeral ports with the browser off.
-func testConfig(stdin io.Reader, onReady func(string)) Config {
+func testConfig(t *testing.T, stdin io.Reader, onReady func(string)) Config {
+	t.Helper()
 	return Config{
-		Name:          "test",
-		HTTPPort:      0, // OS 자동
-		DiscoveryPort: 0, // freeUDPPort로 채움
-		OpenBrowser:   false,
-		Stdin:         stdin,
-		OnReady:       onReady,
+		Name:           "test",
+		HTTPPort:       0, // OS 자동
+		DiscoveryPort:  0, // freeUDPPort로 채움
+		OpenBrowser:    false,
+		InstanceIDPath: t.TempDir() + "/redphone.id",
+		Stdin:          stdin,
+		OnReady:        onReady,
 	}
 }
 
@@ -38,7 +41,7 @@ func TestRunReturnsPromptlyOnCancel(t *testing.T) {
 	pr, pw := io.Pipe()
 	defer pw.Close()
 
-	cfg := testConfig(pr, nil)
+	cfg := testConfig(t, pr, nil)
 	cfg.DiscoveryPort = freeUDPPort(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -60,7 +63,7 @@ func TestRunReturnsPromptlyOnCancel(t *testing.T) {
 // 콘솔 "exit" 입력으로 종료되는지.
 func TestRunExitsOnStdinExit(t *testing.T) {
 	pr, pw := io.Pipe()
-	cfg := testConfig(pr, nil)
+	cfg := testConfig(t, pr, nil)
 	cfg.DiscoveryPort = freeUDPPort(t)
 
 	done := make(chan error, 1)
@@ -84,7 +87,7 @@ func TestRunServesAndShutsDownViaHTTP(t *testing.T) {
 	defer pw.Close()
 
 	urlCh := make(chan string, 1)
-	cfg := testConfig(pr, func(u string) { urlCh <- u })
+	cfg := testConfig(t, pr, func(u string) { urlCh <- u })
 	cfg.DiscoveryPort = freeUDPPort(t)
 
 	done := make(chan error, 1)
@@ -117,5 +120,21 @@ func TestRunServesAndShutsDownViaHTTP(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run did not stop after /api/shutdown")
+	}
+}
+
+func TestLoadOrCreateStableIDPersists(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "redphone.id")
+
+	id1, err := loadOrCreateStableID(path)
+	if err != nil {
+		t.Fatalf("first loadOrCreateStableID: %v", err)
+	}
+	id2, err := loadOrCreateStableID(path)
+	if err != nil {
+		t.Fatalf("second loadOrCreateStableID: %v", err)
+	}
+	if id1 == "" || id1 != id2 {
+		t.Fatalf("stable id mismatch: %q vs %q", id1, id2)
 	}
 }

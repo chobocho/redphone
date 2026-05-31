@@ -14,6 +14,7 @@ import (
 // Peer is one discovered instance on the LAN.
 type Peer struct {
 	ID          string    `json:"id"`
+	SessionID   string    `json:"-"`
 	Name        string    `json:"name"`
 	IP          string    `json:"ip"`        // UDP 패킷 src addr에서 취득(페이로드 신뢰 금지)
 	HTTPPort    int       `json:"httpPort"`  // 파일 본문(평문)·UI 정적 자원용
@@ -61,6 +62,19 @@ func (r *Registry) Remove(id string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.peers, id)
+}
+
+// RemoveSession deletes whichever peer is currently backed by the given
+// runtime discovery session ID.
+func (r *Registry) RemoveSession(sessionID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, p := range r.peers {
+		if p.SessionID == sessionID {
+			delete(r.peers, id)
+			return
+		}
+	}
 }
 
 // Snapshot returns a name-sorted defensive copy of the current peers.

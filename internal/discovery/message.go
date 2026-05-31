@@ -26,7 +26,8 @@ const (
 type Message struct {
 	V         int    `json:"v"`
 	Type      string `json:"type"`
-	ID        string `json:"id"`
+	ID        string `json:"id"`            // 런타임 세션 ID(프로세스마다 다름)
+	UID       string `json:"uid,omitempty"` // 안정 논리 ID(재시작 후에도 유지)
 	Name      string `json:"name,omitempty"`
 	HTTPPort  int    `json:"httpPort,omitempty"`
 	HTTPSPort int    `json:"httpsPort,omitempty"` // v2: 메시지/파일메타 전용 TLS 포트
@@ -39,7 +40,7 @@ type Message struct {
 // 수신 측이 패킷 src addr에서 취해 스푸핑을 막는다.
 func Hello(id, name string, httpPort, httpsPort int, fp string, ts int64) Message {
 	return Message{
-		V: Version, Type: TypeHello, ID: id, Name: name,
+		V: Version, Type: TypeHello, ID: id, UID: id, Name: name,
 		HTTPPort: httpPort, HTTPSPort: httpsPort, FP: fp, TS: ts,
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -33,22 +34,24 @@ import (
 )
 
 const (
-	peerTTL       = 15 * time.Second // 이 시간 HELLO 없으면 오프라인
-	sweepInterval = 3 * time.Second
-	shutdownGrace = 3 * time.Second
+	peerTTL        = 15 * time.Second // 이 시간 HELLO 없으면 오프라인
+	sweepInterval  = 3 * time.Second
+	shutdownGrace  = 3 * time.Second
+	instanceIDFile = "redphone.id"
 )
 
 // Config holds the runtime knobs for a RedPhone instance.
 type Config struct {
-	Name          string    // 화면에 표시될 사용자 이름
-	HTTPPort      int       // 우선 HTTP 포트(사용 중이면 OS 자동 폴백)
-	HTTPSPort     int       // 우선 HTTPS 포트(사용 중이면 OS 자동 폴백)
-	DiscoveryPort int       // 0 → discovery.Port(17000)
-	HistoryPath   string    // SQLite DB path; ""이면 redphone.db
-	OpenBrowser   bool      // 기동 시 기본 브라우저 자동 오픈
-	ScanAll       bool      // true면 주기적으로 서브넷 전체에 유니캐스트 HELLO 스캔
-	Stdin         io.Reader // 테스트 주입용; nil이면 os.Stdin
-	OnReady       func(httpURL string)
+	Name           string    // 화면에 표시될 사용자 이름
+	HTTPPort       int       // 우선 HTTP 포트(사용 중이면 OS 자동 폴백)
+	HTTPSPort      int       // 우선 HTTPS 포트(사용 중이면 OS 자동 폴백)
+	DiscoveryPort  int       // 0 → discovery.Port(17000)
+	HistoryPath    string    // SQLite DB path; ""이면 redphone.db
+	OpenBrowser    bool      // 기동 시 기본 브라우저 자동 오픈
+	ScanAll        bool      // true면 주기적으로 서브넷 전체에 유니캐스트 HELLO 스캔
+	InstanceIDPath string    // 안정 논리 ID 파일 경로; ""이면 실행 파일 옆 redphone.id
+	Stdin          io.Reader // 테스트 주입용; nil이면 os.Stdin
+	OnReady        func(httpURL string)
 }
 
 // Run starts the application and blocks until one of the shutdown paths
@@ -59,7 +62,11 @@ func Run(ctx context.Context, cfg Config) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	selfID := newID()
+	runtimeID := newID()
+	stableID, err := loadOrCreateStableID(cfg.InstanceIDPath)
+	if err != nil {
+		return fmt.Errorf("app: stable id: %w", err)
+	}
 
 	// ---- 상태/저장소 ----
 	reg := peer.NewRegistry()
@@ -105,7 +112,7 @@ func Run(ctx context.Context, cfg Config) error {
 		dport = discovery.Port
 	}
 	dsvc := &discovery.Service{
-		SelfID: selfID, Name: cfg.Name,
+		SelfID: runtimeID, SelfUID: stableID, Name: cfg.Name,
 		HTTPPort: httpPort, HTTPSPort: httpsPort, FP: id.Fingerprint,
 		Port: dport, ScanOnStart: cfg.ScanAll,
 	}
@@ -126,7 +133,7 @@ func Run(ctx context.Context, cfg Config) error {
 
 	srv := web.New(web.Options{
 		Reg:         reg,
-		SelfID:      selfID,
+		SelfID:      stableID,
 		Name:        cfg.Name,
 		History:     hist,
 		Shares:      shares,
@@ -158,14 +165,18 @@ func Run(ctx context.Context, cfg Config) error {
 	spawn(func() {
 		_ = dsvc.Run(ctx, dconn, dst, discovery.Handlers{
 			OnHello: func(m discovery.Message, ip string) {
+				peerID := m.UID
+				if peerID == "" {
+					peerID = m.ID
+				}
 				reg.Upsert(peer.Peer{
-					ID: m.ID, Name: m.Name, IP: ip,
+					ID: peerID, SessionID: m.ID, Name: m.Name, IP: ip,
 					HTTPPort: m.HTTPPort, HTTPSPort: m.HTTPSPort,
 					Fingerprint: m.FP,
 				})
 				pushPeers()
 			},
-			OnBye: func(id string) { reg.Remove(id); pushPeers() },
+			OnBye: func(id string) { reg.RemoveSession(id); pushPeers() },
 		})
 	})
 	spawn(func() { sweepPeers(ctx, reg, pushPeers) })
@@ -182,7 +193,7 @@ func Run(ctx context.Context, cfg Config) error {
 
 	httpURL := fmt.Sprintf("http://localhost:%d", httpPort)
 	slog.Info("redphone up",
-		"name", cfg.Name, "id", selfID, "ui", httpURL,
+		"name", cfg.Name, "runtime_id", runtimeID, "stable_id", stableID, "ui", httpURL,
 		"discovery", dport, "https", httpsPort, "fp", id.Fingerprint[:12])
 	if cfg.OnReady != nil {
 		cfg.OnReady(httpURL)
@@ -262,6 +273,37 @@ func stdinOf(cfg Config) io.Reader {
 		return cfg.Stdin
 	}
 	return os.Stdin
+}
+
+func defaultInstanceIDPath() string {
+	if exe, err := os.Executable(); err == nil {
+		return filepath.Join(filepath.Dir(exe), instanceIDFile)
+	}
+	return instanceIDFile
+}
+
+func loadOrCreateStableID(path string) (string, error) {
+	if path == "" {
+		path = defaultInstanceIDPath()
+	}
+	if b, err := os.ReadFile(path); err == nil {
+		if id := strings.TrimSpace(string(b)); id != "" {
+			return id, nil
+		}
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	id := newID()
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, []byte(id+"\n"), 0o600); err != nil {
+		return "", err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return "", err
+	}
+	return id, nil
 }
 
 // watchStdin reads console lines and cancels on a bare "exit".

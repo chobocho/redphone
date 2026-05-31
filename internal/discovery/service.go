@@ -25,10 +25,12 @@ var ErrNotRunning = errors.New("discovery: service not running")
 // 브로드캐스트가 막힌 망을 위해 두 가지 유니캐스트 경로를 추가로 가진다.
 //   - 수동 등록 친구 IP(targets): 매 틱마다 직접 HELLO를 보낸다.
 //   - 전체 서브넷 스캔(ScanLAN): 옵션으로 켤 때 모든 호스트에 HELLO를 뿌린다.
+//
 // 유니캐스트 HELLO를 받은 쪽은 1회 응답(reply=true)을 되돌려, 한쪽만 상대를
 // 등록해도 양방향으로 서로의 지문/포트를 학습한다.
 type Service struct {
 	SelfID      string
+	SelfUID     string
 	Name        string
 	HTTPPort    int
 	HTTPSPort   int           // v2: 메시지/파일메타 TLS 포트
@@ -199,7 +201,11 @@ func (s *Service) scanLoop(ctx context.Context, conn net.PacketConn) {
 }
 
 func (s *Service) sendHello(conn net.PacketConn, dst net.Addr) {
-	if b, err := Hello(s.SelfID, s.Name, s.HTTPPort, s.HTTPSPort, s.FP, s.now()).Encode(); err == nil {
+	m := Hello(s.SelfID, s.Name, s.HTTPPort, s.HTTPSPort, s.FP, s.now())
+	if s.SelfUID != "" {
+		m.UID = s.SelfUID
+	}
+	if b, err := m.Encode(); err == nil {
 		_, _ = conn.WriteTo(b, dst)
 	}
 }
@@ -219,6 +225,9 @@ func (s *Service) sendBye(conn net.PacketConn, dst net.Addr) {
 // sendHelloReply unicasts a one-shot HELLO (reply=true) back to a probing peer.
 func (s *Service) sendHelloReply(conn net.PacketConn, addr net.Addr) {
 	m := Hello(s.SelfID, s.Name, s.HTTPPort, s.HTTPSPort, s.FP, s.now())
+	if s.SelfUID != "" {
+		m.UID = s.SelfUID
+	}
 	m.Reply = true
 	if b, err := m.Encode(); err == nil {
 		_, _ = conn.WriteTo(b, addr)
@@ -228,6 +237,9 @@ func (s *Service) sendHelloReply(conn net.PacketConn, addr net.Addr) {
 // unicastHello sends a HELLO to a specific IP at the discovery port.
 func (s *Service) unicastHello(conn net.PacketConn, ip string, reply bool) {
 	m := Hello(s.SelfID, s.Name, s.HTTPPort, s.HTTPSPort, s.FP, s.now())
+	if s.SelfUID != "" {
+		m.UID = s.SelfUID
+	}
 	m.Reply = reply
 	if b, err := m.Encode(); err == nil {
 		_, _ = conn.WriteTo(b, s.unicastAddr(ip))
