@@ -3,6 +3,11 @@
   --panel:#13161b;
   --panel-2:#191d24;
   --panel-3:#20252e;
+  --chrome-bg:rgba(19,22,27,.6);
+  --danger-bg:rgba(255,59,59,.07);
+  --danger-border:rgba(255,59,59,.34);
+  --bye-bg:rgba(8,10,13,.96);
+  --bye-txt:#dfe4ec;
   --line:#272d37;
   --line-soft:#1f242c;
   --txt:#dfe4ec;
@@ -23,15 +28,20 @@
 }
 
 :root[data-theme="light"]{
-  --bg:#f3f5f8;
+  --bg:#f1f4f8;
   --panel:#ffffff;
-  --panel-2:#f8fafc;
-  --panel-3:#eef2f7;
-  --line:#d8dee8;
-  --line-soft:#e6ebf2;
+  --panel-2:#fbfcfe;
+  --panel-3:#edf2f8;
+  --chrome-bg:#f7f9fc;
+  --danger-bg:#fff2f2;
+  --danger-border:#f2b9b9;
+  --bye-bg:rgba(241,244,248,.96);
+  --bye-txt:#18202a;
+  --line:#cfd8e5;
+  --line-soft:#dde5ef;
   --txt:#18202a;
-  --txt-dim:#4d5a6a;
-  --txt-faint:#6f7d8d;
+  --txt-dim:#3a4a5e;
+  --txt-faint:#5f6f83;
   --red:#d83131;
   --red-soft:#ef5b5b;
   --red-deep:#fde7e7;
@@ -57,6 +67,7 @@ body{
   min-height:100vh;
   min-height:100dvh;
 }
+::placeholder{color:var(--txt-faint);opacity:1}
 
 .app{
   display:grid;
@@ -114,8 +125,8 @@ button{
 .ghost.danger:hover{background:var(--red-deep);color:var(--red)}
 .exit{
   color:var(--red-soft);
-  background:rgba(255,59,59,.07);
-  border-color:rgba(255,59,59,.34);
+  background:var(--danger-bg);
+  border-color:var(--danger-border);
 }
 .exit:hover{background:var(--red-deep);border-color:var(--red);color:var(--red)}
 .primary,.composer button,.iprow button{
@@ -225,7 +236,7 @@ button{
 .menu{display:none}
 .chat-head{
   display:flex;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line);
-  background:rgba(19,22,27,.6)
+  background:var(--chrome-bg)
 }
 .chat-meta{display:flex;flex-direction:column;min-width:0}
 .chat-head strong{font-size:15px}
@@ -261,7 +272,7 @@ button{
 
 .composer{
   display:flex;align-items:center;gap:10px;padding:13px 16px;border-top:1px solid var(--line);
-  background:rgba(19,22,27,.6)
+  background:var(--chrome-bg)
 }
 .attach{
   display:inline-flex;align-items:center;justify-content:center;min-width:52px;
@@ -303,8 +314,8 @@ button{
 .modal-actions .primary{padding:10px 14px}
 
 .bye{
-  position:fixed;inset:0;background:rgba(8,10,13,.96);display:grid;place-content:center;
-  text-align:center;gap:10px;z-index:200;color:#dfe4ec;font-family:var(--mono)
+  position:fixed;inset:0;background:var(--bye-bg);display:grid;place-content:center;
+  text-align:center;gap:10px;z-index:200;color:var(--bye-txt);font-family:var(--mono)
 }
 .bye .big{font-size:64px;font-weight:800}
 .scrim{display:none}
