@@ -797,6 +797,22 @@
     $("bye").hidden = false;
   }
 
+  async function showHelp() {
+    if (!$("modalLayer").hidden) return;
+    await showDialog({
+      title: "도움말",
+      message:
+        "Enter: 메시지 전송\n" +
+        "Shift+Enter: 줄바꿈\n" +
+        "F1: 이 도움말 열기\n\n" +
+        "이름 버튼: 내 표시 이름 변경\n" +
+        "복사: 메시지 텍스트 복사\n" +
+        "삭제: 내 로컬 기록에서만 삭제",
+      confirmText: "닫기",
+      cancelText: "",
+    });
+  }
+
   const openSide = () => {
     $("side").classList.add("open");
     $("scrim").classList.add("show");
@@ -861,6 +877,12 @@
     });
     $("scanBtn").addEventListener("click", scanLAN);
     $("myipCopy").addEventListener("click", () => copy($("myipVal").textContent));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "F1") {
+        e.preventDefault();
+        showHelp();
+      }
+    });
 
     fetch("/api/peers").then(jsonOrNull).then((p) => {
       state.peers = p || [];

@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -14,6 +15,25 @@ import (
 )
 
 func main() {
+	flag.Usage = func() {
+		out := flag.CommandLine.Output()
+		fmt.Fprintln(out, "RedPhone - LAN messenger")
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Usage:")
+		fmt.Fprintln(out, "  redphone [options]")
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Options:")
+		flag.PrintDefaults()
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Web UI:")
+		fmt.Fprintln(out, "  F1   도움말")
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Examples:")
+		fmt.Fprintln(out, "  redphone")
+		fmt.Fprintln(out, "  redphone --name alice --open=false")
+		fmt.Fprintln(out, "  redphone --port 18080 --sport 18443 --scan")
+	}
+
 	name := flag.String("name", defaultName(), "표시 이름")
 	port := flag.Int("port", 17080, "HTTP 포트(사용 중이면 OS 자동 폴백)")
 	sport := flag.Int("sport", 17443, "HTTPS 포트(쪽지·파일메타 전용, 사용 중이면 OS 자동 폴백)")
