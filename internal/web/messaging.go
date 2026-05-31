@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/chobocho/redphone/internal/message"
@@ -16,8 +17,8 @@ const peerRequestTimeout = 5 * time.Second
 
 // wsEvent is the envelope pushed to browsers over the hub.
 type wsEvent struct {
-	Type   string         `json:"type"`             // "entry" | "file" | "peers" | "history_cleared"
-	Entry  *message.Entry `json:"entry,omitempty"`  // type=="entry"
+	Type   string         `json:"type"`             // "entry" | "entry_deleted" | "file" | "peers" | "history_cleared"
+	Entry  *message.Entry `json:"entry,omitempty"`  // type=="entry" | "entry_deleted"
 	PeerID string         `json:"peerId,omitempty"` // type=="history_cleared"
 	Text   string         `json:"text,omitempty"`
 }
@@ -134,6 +135,29 @@ func (s *Server) handleDeleteHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	s.pushEvent(wsEvent{Type: "history_cleared", PeerID: peerID})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "cleared"})
+}
+
+func (s *Server) handleDeleteEntry(w http.ResponseWriter, r *http.Request) {
+	entryID, err := strconv.ParseInt(r.PathValue("entryID"), 10, 64)
+	if err != nil || entryID <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "entry id required"})
+		return
+	}
+	if s.opt.History == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "entry not found"})
+		return
+	}
+	entry, err := s.opt.History.DeleteEntry(entryID)
+	if err != nil {
+		if err == message.ErrEntryNotFound {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "entry not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "history failed"})
+		return
+	}
+	s.pushEvent(wsEvent{Type: "entry_deleted", Entry: &entry})
+	writeJSON(w, http.StatusOK, map[string]any{"status": "deleted", "entry": entry})
 }
 
 // postJSONTLS POSTs v as JSON to a peer URL using a fingerprint-pinned TLS client.

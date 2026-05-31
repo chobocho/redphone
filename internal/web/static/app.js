@@ -12,6 +12,7 @@
     convos: new Map(),
     unread: new Map(),
     entryIds: new Set(),
+    peerNames: new Map(),
     selfIP: null,
     theme: localStorage.getItem(THEME_KEY) || "dark",
   };
@@ -53,7 +54,31 @@
   function peerLabel(id) {
     if (id === ALL) return "전체";
     const p = peerById(id);
-    return p ? (p.name || p.id) : id;
+    return p ? (p.name || p.id) : (state.peerNames.get(id) || id);
+  }
+
+  function rememberPeerLabel(id, name) {
+    id = (id || "").trim();
+    name = (name || "").trim();
+    if (!id || !name || id === ALL) return;
+    state.peerNames.set(id, name);
+  }
+
+  function visiblePeerIds() {
+    const ids = [];
+    const seen = new Set();
+
+    for (const p of state.peers) {
+      if (!p || !p.id || p.id === ALL || seen.has(p.id)) continue;
+      ids.push(p.id);
+      seen.add(p.id);
+    }
+    for (const peerID of state.convos.keys()) {
+      if (!peerID || peerID === ALL || seen.has(peerID)) continue;
+      ids.push(peerID);
+      seen.add(peerID);
+    }
+    return ids;
   }
 
   function applyTheme(theme) {
@@ -101,7 +126,7 @@
     const ul = $("peers");
     ul.innerHTML = "";
     $("peerCount").textContent = state.peers.length;
-    $("peersEmpty").style.display = state.peers.length ? "none" : "block";
+    $("peersEmpty").style.display = visiblePeerIds().length ? "none" : "block";
 
     const all = document.createElement("li");
     all.className = "all" + (state.selected === ALL ? " active" : "");
@@ -113,15 +138,17 @@
     all.addEventListener("click", () => selectPeer(ALL));
     ul.appendChild(all);
 
-    for (const p of state.peers) {
+    for (const peerID of visiblePeerIds()) {
+      const p = peerById(peerID);
       const li = document.createElement("li");
-      if (p.id === state.selected) li.className = "active";
-      const unread = state.unread.get(p.id) || 0;
+      if (peerID === state.selected) li.className = "active";
+      const unread = state.unread.get(peerID) || 0;
+      const label = p ? (p.name || p.id) : peerLabel(peerID);
       li.innerHTML =
-        `<span class="led on"></span><span class="nm">${esc(p.name || p.id)}</span>` +
+        `<span class="led ${p ? "on" : "off"}"></span><span class="nm">${esc(label)}</span>` +
         (unread ? `<span class="badge">${unread}</span>` : "") +
-        `<span class="ip">${esc(p.ip || "")}</span>`;
-      li.addEventListener("click", () => selectPeer(p.id));
+        `<span class="ip">${esc(p ? (p.ip || "") : "오프라인")}</span>`;
+      li.addEventListener("click", () => selectPeer(peerID));
       ul.appendChild(li);
     }
   }
@@ -167,6 +194,7 @@
   function addEntry(entry, opts = {}) {
     const markUnread = opts.markUnread !== false;
     if (!entry || !entry.peerId) return false;
+    rememberPeerLabel(entry.peerId, entry.from);
     if (entry.id && state.entryIds.has(entry.id)) return false;
     if (entry.id) state.entryIds.add(entry.id);
     pushMsg(entry.peerId, entry);
@@ -176,6 +204,29 @@
       state.unread.set(entry.peerId, (state.unread.get(entry.peerId) || 0) + 1);
       renderPeers();
     }
+    return true;
+  }
+
+  function removeEntry(entry) {
+    if (!entry || !entry.peerId || !entry.id) return false;
+
+    const items = state.convos.get(entry.peerId) || [];
+    const next = items.filter((item) => item.id !== entry.id);
+    if (next.length === items.length) return false;
+
+    if (next.length) {
+      state.convos.set(entry.peerId, next);
+    } else {
+      state.convos.delete(entry.peerId);
+      state.unread.set(entry.peerId, 0);
+    }
+    if (entry.dir === "in" && state.selected !== entry.peerId) {
+      const unread = state.unread.get(entry.peerId) || 0;
+      if (unread > 0) state.unread.set(entry.peerId, unread - 1);
+    }
+    state.entryIds.delete(entry.id);
+    renderPeers();
+    renderLog();
     return true;
   }
 
@@ -223,6 +274,16 @@
       copyBtn.textContent = "복사";
       copyBtn.addEventListener("click", () => copy(m.text || ""));
       actions.appendChild(copyBtn);
+
+      if (m.id) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "msg-delete";
+        deleteBtn.type = "button";
+        deleteBtn.title = "메시지 삭제";
+        deleteBtn.textContent = "삭제";
+        deleteBtn.addEventListener("click", () => deleteMessage(m));
+        actions.appendChild(deleteBtn);
+      }
       div.appendChild(actions);
 
       const body = document.createElement("div");
@@ -253,7 +314,7 @@
       $("text").placeholder = "모든 피어에게 보낼 메시지";
     } else {
       const p = peerById(id);
-      $("chatTitle").textContent = p ? (p.name || p.id) : "(오프라인)";
+      $("chatTitle").textContent = peerLabel(id);
       $("chatIP").textContent = p ? `${p.ip}:${p.httpPort}` : "";
       $("peerLed").className = "led " + (p ? "on" : "off");
       $("text").placeholder = "메시지를 입력하세요";
@@ -430,9 +491,12 @@
       state.convos = new Map();
       state.unread = new Map();
       state.entryIds = new Set();
+      state.peerNames = new Map();
+      for (const p of state.peers) rememberPeerLabel(p.id, p.name || p.id);
       for (const entry of list) {
         addEntry(entry, { markUnread: false });
       }
+      renderPeers();
       renderLog();
     } catch {}
   }
@@ -556,11 +620,13 @@
       }
       if (msg.type === "peers") {
         state.peers = msg.peers || [];
+        for (const p of state.peers) rememberPeerLabel(p.id, p.name || p.id);
         renderPeers();
         if (state.selected && state.selected !== ALL) {
           const p = peerById(state.selected);
           $("peerLed").className = "led " + (p ? "on" : "off");
-          if (!p) $("chatTitle").textContent = "(오프라인)";
+          $("chatTitle").textContent = peerLabel(state.selected);
+          $("chatIP").textContent = p ? `${p.ip}:${p.httpPort}` : "";
         }
       } else if (msg.type === "entry" && msg.entry) {
         const added = addEntry(msg.entry);
@@ -568,6 +634,8 @@
           ringPhone();
           toast(`${msg.entry.from || peerLabel(msg.entry.peerId)}: ${msg.entry.text}`.slice(0, 60));
         }
+      } else if (msg.type === "entry_deleted" && msg.entry) {
+        removeEntry(msg.entry);
       } else if (msg.type === "history_cleared" && msg.peerId) {
         removeConversation(msg.peerId);
       } else if (msg.type === "file") {
@@ -658,6 +726,29 @@
       toast("대화를 삭제했습니다.");
     } catch (err) {
       toast("대화 삭제 오류: " + err.message);
+    }
+  }
+
+  async function deleteMessage(entry) {
+    if (!entry || !entry.id) return;
+    const result = await showDialog({
+      title: "메시지 삭제",
+      message: "이 메시지를 삭제할까요?\n상대방 기록은 삭제되지 않습니다.",
+      confirmText: "삭제",
+      danger: true,
+    });
+    if (!result.confirmed) return;
+    try {
+      const res = await fetch("/api/history/entry/" + encodeURIComponent(entry.id), { method: "DELETE" });
+      const data = await jsonOrNull(res);
+      if (!res.ok) {
+        toast("메시지 삭제 실패: " + (data && data.error ? data.error : res.status));
+        return;
+      }
+      removeEntry((data && data.entry) || entry);
+      toast("메시지를 삭제했습니다.");
+    } catch (err) {
+      toast("메시지 삭제 오류: " + err.message);
     }
   }
 

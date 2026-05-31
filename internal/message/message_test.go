@@ -87,3 +87,39 @@ func TestHistoryClearByPeer(t *testing.T) {
 		t.Fatalf("unexpected remaining history: %+v", all)
 	}
 }
+
+func TestHistoryDeleteEntry(t *testing.T) {
+	h := NewHistory()
+	defer h.Close()
+
+	keep, err := h.AddEntry(Entry{PeerID: "a", Dir: "out", Text: "keep"})
+	if err != nil {
+		t.Fatalf("AddEntry keep: %v", err)
+	}
+	drop, err := h.AddEntry(Entry{PeerID: "b", Dir: "in", Text: "drop"})
+	if err != nil {
+		t.Fatalf("AddEntry drop: %v", err)
+	}
+
+	deleted, err := h.DeleteEntry(drop.ID)
+	if err != nil {
+		t.Fatalf("DeleteEntry: %v", err)
+	}
+	if deleted.ID != drop.ID || deleted.PeerID != "b" || deleted.Text != "drop" {
+		t.Fatalf("unexpected deleted entry: %+v", deleted)
+	}
+
+	all := mustAll(t, h)
+	if len(all) != 1 || all[0].ID != keep.ID {
+		t.Fatalf("unexpected remaining history: %+v", all)
+	}
+}
+
+func TestHistoryDeleteEntryNotFound(t *testing.T) {
+	h := NewHistory()
+	defer h.Close()
+
+	if _, err := h.DeleteEntry(999); err != ErrEntryNotFound {
+		t.Fatalf("want ErrEntryNotFound, got %v", err)
+	}
+}

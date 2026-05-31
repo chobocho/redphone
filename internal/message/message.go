@@ -38,6 +38,7 @@ type History struct {
 }
 
 var memoryHistorySeq atomic.Uint64
+var ErrEntryNotFound = errors.New("entry not found")
 
 // NewHistory returns an in-memory history, used mainly by tests.
 func NewHistory() *History {
@@ -171,4 +172,31 @@ func (h *History) Clear(peerID string) error {
 		return fmt.Errorf("message: clear peer history: %w", err)
 	}
 	return nil
+}
+
+// DeleteEntry deletes one chat entry by its stored ID and returns the deleted row.
+func (h *History) DeleteEntry(id int64) (Entry, error) {
+	if h == nil || h.db == nil {
+		return Entry{}, errors.New("history unavailable")
+	}
+	if id <= 0 {
+		return Entry{}, errors.New("entry id required")
+	}
+
+	var e Entry
+	row := h.db.QueryRow(`
+		SELECT id, peer_id, dir, text, ts, from_id, from_name
+		FROM chat_history
+		WHERE id = ?
+	`, id)
+	if err := row.Scan(&e.ID, &e.PeerID, &e.Dir, &e.Text, &e.TS, &e.FromID, &e.From); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Entry{}, ErrEntryNotFound
+		}
+		return Entry{}, fmt.Errorf("message: scan entry: %w", err)
+	}
+	if _, err := h.db.Exec(`DELETE FROM chat_history WHERE id = ?`, id); err != nil {
+		return Entry{}, fmt.Errorf("message: delete entry: %w", err)
+	}
+	return e, nil
 }

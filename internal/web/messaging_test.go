@@ -253,6 +253,44 @@ func TestDeleteHistoryClearsSelectedPeer(t *testing.T) {
 	}
 }
 
+func TestDeleteEntryRemovesOnlySelectedMessage(t *testing.T) {
+	hist := message.NewHistory()
+	defer hist.Close()
+	keep, err := hist.AddEntry(message.Entry{PeerID: "A", Dir: "in", Text: "keep"})
+	if err != nil {
+		t.Fatalf("AddEntry keep: %v", err)
+	}
+	drop, err := hist.AddEntry(message.Entry{PeerID: "B", Dir: "out", Text: "drop"})
+	if err != nil {
+		t.Fatalf("AddEntry drop: %v", err)
+	}
+
+	srv := New(Options{Reg: peer.NewRegistry(), SelfID: "me", Name: "me", History: hist})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/api/history/entry/"+strconv.FormatInt(drop.ID, 10), nil)
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d", rec.Code)
+	}
+
+	all := mustEntries(t, hist)
+	if len(all) != 1 || all[0].ID != keep.ID {
+		t.Fatalf("unexpected history after delete: %+v", all)
+	}
+}
+
+func TestDeleteEntryReturns404WhenMissing(t *testing.T) {
+	hist := message.NewHistory()
+	defer hist.Close()
+	srv := New(Options{Reg: peer.NewRegistry(), SelfID: "me", Name: "me", History: hist})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/api/history/entry/999", nil)
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("want 404, got %d", rec.Code)
+	}
+}
+
 func TestSendToUnknownPeerReturns404(t *testing.T) {
 	srv := New(Options{Reg: peer.NewRegistry(), SelfID: "A", Name: "alice"})
 	rec := httptest.NewRecorder()
