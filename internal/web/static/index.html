@@ -16,10 +16,10 @@
         <small id="selfName">connecting...</small>
       </div>
       <div class="brand-actions">
-        <button class="theme-toggle" id="nameBtn" title="이름 변경">이름</button>
-        <button class="theme-toggle" id="langBtn" title="언어 변경">EN</button>
-        <button class="theme-toggle" id="themeBtn" title="테마 전환">화이트</button>
-        <button class="exit" id="exitBtn" title="종료">종료</button>
+        <button class="theme-toggle icon-btn" id="nameBtn" title="이름 변경 / Change name" aria-label="이름 변경 / Change name">📝</button>
+        <button class="theme-toggle icon-btn" id="langBtn" title="언어 변경 / Change language" aria-label="언어 변경 / Change language">🌐</button>
+        <button class="theme-toggle icon-btn" id="themeBtn" title="테마 전환 / Change theme" aria-label="테마 전환 / Change theme">☀️</button>
+        <button class="exit icon-btn" id="exitBtn" title="종료 / Exit" aria-label="종료 / Exit">⏻</button>
       </div>
     </header>
 
@@ -29,12 +29,12 @@
     <ul class="peers" id="peers"></ul>
     <p class="empty" id="peersEmpty">같은 LAN의 RedPhone을 찾는 중입니다.</p>
 
-    <div class="sec-label"><span id="targetsLabel">친구 IP</span> <button class="scan" id="scanBtn" title="서브넷 전체에 HELLO를 보냅니다">전체 스캔</button></div>
+    <div class="sec-label"><span id="targetsLabel">친구 IP</span> <button class="scan" id="scanBtn" title="전체 스캔 / Scan all" aria-label="전체 스캔 / Scan all">🔎</button></div>
     <div class="ipbox">
-      <div class="myip" id="myip" hidden><span id="myipLabel">내 IP</span> <code id="myipVal"></code><button class="copy" id="myipCopy" title="복사">복사</button></div>
+      <div class="myip" id="myip" hidden><span id="myipLabel">내 IP</span> <code id="myipVal"></code><button class="copy" id="myipCopy" title="복사 / Copy" aria-label="복사 / Copy">📋</button></div>
       <div class="iprow">
         <input type="text" id="ipInput" placeholder="예: 192.168.0.42" autocomplete="off" inputmode="decimal" />
-        <button id="ipAddBtn">추가</button>
+        <button id="ipAddBtn" title="추가 / Add" aria-label="추가 / Add">➕</button>
       </div>
       <ul class="targets" id="targets"></ul>
       <p class="empty" id="targetsEmpty">브로드캐스트가 막힌 망이면 친구 IP를 직접 추가하세요.</p>
@@ -50,14 +50,14 @@
   </aside>
 
   <main class="main">
-    <button class="menu" id="menuBtn">메뉴</button>
+    <button class="menu" id="menuBtn" title="메뉴 / Menu" aria-label="메뉴 / Menu">☰</button>
     <header class="chat-head">
       <span class="led" id="peerLed"></span>
       <div class="chat-meta">
         <strong id="chatTitle">피어를 선택하세요</strong>
         <span class="peer-ip" id="chatIP"></span>
       </div>
-      <button class="ghost danger" id="clearBtn" disabled>대화 삭제</button>
+      <button class="ghost danger" id="clearBtn" title="대화 삭제 / Delete chat" aria-label="대화 삭제 / Delete chat" disabled>🗑️</button>
     </header>
 
     <section class="log" id="log">
@@ -68,11 +68,11 @@
     </section>
 
     <footer class="composer" id="composer" hidden>
-      <label class="attach" id="attachLabel" title="파일 전송"><span id="attachText">파일</span>
+      <label class="attach" id="attachLabel" title="파일 전송 / Send file" aria-label="파일 전송 / Send file"><span id="attachText">📎</span>
         <input type="file" id="fileInput" hidden />
       </label>
       <input type="text" id="text" placeholder="메시지를 입력하세요" autocomplete="off" />
-      <button id="sendBtn">전송</button>
+      <button id="sendBtn" title="전송 / Send" aria-label="전송 / Send">📤</button>
     </footer>
   </main>
 </div>

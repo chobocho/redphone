@@ -251,6 +251,7 @@
     const value = M[state.lang][key];
     return typeof value === "function" ? value(...args) : value;
   };
+  const bi = (key) => `${M.ko[key]} / ${M.en[key]}`;
   const setHTML = (id, value) => {
     const el = $(id);
     if (el) el.innerHTML = value;
@@ -316,7 +317,7 @@
     state.theme = theme === "light" ? "light" : "dark";
     document.documentElement.dataset.theme = state.theme;
     localStorage.setItem(THEME_KEY, state.theme);
-    $("themeBtn").textContent = state.theme === "light" ? t("themeDark") : t("themeLight");
+    $("themeBtn").textContent = state.theme === "light" ? "🌙" : "☀️";
   }
 
   function toggleTheme() {
@@ -328,33 +329,53 @@
     localStorage.setItem(LANG_KEY, state.lang);
     document.documentElement.lang = state.lang;
 
-    $("nameBtn").textContent = t("renameButton");
-    $("nameBtn").title = t("renameTitle");
-    $("langBtn").textContent = t("langButton");
-    $("langBtn").title = t("langTitle");
-    $("themeBtn").title = t("themeTitle");
-    $("exitBtn").textContent = t("exit");
-    $("exitBtn").title = t("exitTitle");
+    const nameTip = bi("renameTitle");
+    const langTip = bi("langTitle");
+    const themeTip = bi("themeTitle");
+    const exitTip = bi("exitTitle");
+
+    $("nameBtn").textContent = "📝";
+    $("nameBtn").title = nameTip;
+    $("nameBtn").setAttribute("aria-label", nameTip);
+    $("langBtn").textContent = "🌐";
+    $("langBtn").title = langTip;
+    $("langBtn").setAttribute("aria-label", langTip);
+    $("themeBtn").title = themeTip;
+    $("themeBtn").setAttribute("aria-label", themeTip);
+    $("exitBtn").textContent = "⏻";
+    $("exitBtn").title = exitTip;
+    $("exitBtn").setAttribute("aria-label", exitTip);
     $("wsState").textContent = t("wsConnecting");
     $("peersLabel").textContent = t("peers");
     $("peersEmpty").textContent = t("peersEmpty");
     $("targetsLabel").textContent = t("friendIp");
-    $("scanBtn").textContent = t("scanAll");
-    $("scanBtn").title = t("scanTitle");
+    $("scanBtn").textContent = "🔎";
+    $("scanBtn").title = bi("scanAll");
+    $("scanBtn").setAttribute("aria-label", bi("scanAll"));
     $("myipLabel").textContent = t("myIp");
-    $("myipCopy").textContent = t("copy");
-    $("myipCopy").title = t("copy");
+    $("myipCopy").textContent = "📋";
+    $("myipCopy").title = bi("copy");
+    $("myipCopy").setAttribute("aria-label", bi("copy"));
     $("ipInput").placeholder = t("ipPlaceholder");
-    $("ipAddBtn").textContent = t("add");
+    $("ipAddBtn").textContent = "➕";
+    $("ipAddBtn").title = bi("add");
+    $("ipAddBtn").setAttribute("aria-label", bi("add"));
     $("targetsEmpty").textContent = t("targetsEmpty");
     $("shareLabel").textContent = t("share");
     $("shareCreateLabel").textContent = t("shareCreate");
-    $("menuBtn").textContent = t("menu");
-    $("clearBtn").textContent = t("clearConversation");
+    $("menuBtn").textContent = "☰";
+    $("menuBtn").title = bi("menu");
+    $("menuBtn").setAttribute("aria-label", bi("menu"));
+    $("clearBtn").textContent = "🗑️";
+    $("clearBtn").title = bi("clearConversation");
+    $("clearBtn").setAttribute("aria-label", bi("clearConversation"));
     setHTML("placeholderText", t("placeholder"));
-    $("attachLabel").title = t("attachTitle");
-    $("attachText").textContent = t("attach");
-    $("sendBtn").textContent = t("send");
+    $("attachLabel").title = bi("attachTitle");
+    $("attachLabel").setAttribute("aria-label", bi("attachTitle"));
+    $("attachText").textContent = "📎";
+    $("sendBtn").textContent = "📤";
+    $("sendBtn").title = bi("send");
+    $("sendBtn").setAttribute("aria-label", bi("send"));
     $("modalCancel").textContent = t("cancel");
     $("modalConfirm").textContent = t("confirm");
     setHTML("byeText", t("bye"));
@@ -442,8 +463,8 @@
       const li = document.createElement("li");
       li.innerHTML =
         `<span class="ip">${esc(ip)}</span>` +
-        `<button class="edit" title="${t("editTitle")}">${t("edit")}</button>` +
-        `<button class="rm" title="${t("delete")}">${t("delete")}</button>`;
+        `<button class="edit" title="${esc(bi("editTitle"))}" aria-label="${esc(bi("editTitle"))}">✏️</button>` +
+        `<button class="rm" title="${esc(bi("delete"))}" aria-label="${esc(bi("delete"))}">🗑️</button>`;
       li.querySelector(".edit").addEventListener("click", () => editTarget(ip));
       li.querySelector(".rm").addEventListener("click", () => removeTarget(ip));
       ul.appendChild(li);
@@ -551,8 +572,9 @@
       const copyBtn = document.createElement("button");
       copyBtn.className = "msg-copy";
       copyBtn.type = "button";
-      copyBtn.title = t("copy");
-      copyBtn.textContent = t("copy");
+      copyBtn.title = bi("copy");
+      copyBtn.setAttribute("aria-label", bi("copy"));
+      copyBtn.textContent = "📋";
       copyBtn.addEventListener("click", () => copy(m.text || ""));
       actions.appendChild(copyBtn);
 
@@ -560,8 +582,9 @@
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "msg-delete";
         deleteBtn.type = "button";
-        deleteBtn.title = t("delete");
-        deleteBtn.textContent = t("delete");
+        deleteBtn.title = bi("delete");
+        deleteBtn.setAttribute("aria-label", bi("delete"));
+        deleteBtn.textContent = "🗑️";
         deleteBtn.addEventListener("click", () => deleteMessage(m));
         actions.appendChild(deleteBtn);
       }
@@ -712,9 +735,9 @@
         li.innerHTML =
           `<div class="top"><span class="k ${esc(s.kind)}">${esc(s.kind)}</span>` +
           `<span class="nm">${esc(s.name)}</span>` +
-          `<button class="rm" title="${t("revoke")}">${t("revoke")}</button></div>` +
+          `<button class="rm" title="${esc(bi("revoke"))}" aria-label="${esc(bi("revoke"))}">♻️</button></div>` +
           `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>` +
-          `<button class="copy">${t("copyLink")}</button>`;
+          `<button class="copy" title="${esc(bi("copyLink"))}" aria-label="${esc(bi("copyLink"))}">🔗</button>`;
         li.querySelector(".rm").addEventListener("click", () => revokeShare(s.token));
         li.querySelector(".copy").addEventListener("click", () => copy(url));
         ul.appendChild(li);
