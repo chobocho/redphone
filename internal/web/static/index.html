@@ -17,6 +17,7 @@
       </div>
       <div class="brand-actions">
         <button class="theme-toggle" id="nameBtn" title="이름 변경">이름</button>
+        <button class="theme-toggle" id="langBtn" title="언어 변경">EN</button>
         <button class="theme-toggle" id="themeBtn" title="테마 전환">화이트</button>
         <button class="exit" id="exitBtn" title="종료">종료</button>
       </div>
@@ -24,13 +25,13 @@
 
     <div class="conn"><span class="led" id="wsLed"></span><span id="wsState">연결 중...</span></div>
 
-    <div class="sec-label">피어 <span class="count" id="peerCount">0</span></div>
+    <div class="sec-label"><span id="peersLabel">피어</span> <span class="count" id="peerCount">0</span></div>
     <ul class="peers" id="peers"></ul>
     <p class="empty" id="peersEmpty">같은 LAN의 RedPhone을 찾는 중입니다.</p>
 
-    <div class="sec-label">친구 IP <button class="scan" id="scanBtn" title="서브넷 전체에 HELLO를 보냅니다">전체 스캔</button></div>
+    <div class="sec-label"><span id="targetsLabel">친구 IP</span> <button class="scan" id="scanBtn" title="서브넷 전체에 HELLO를 보냅니다">전체 스캔</button></div>
     <div class="ipbox">
-      <div class="myip" id="myip" hidden>내 IP <code id="myipVal"></code><button class="copy" id="myipCopy" title="복사">복사</button></div>
+      <div class="myip" id="myip" hidden><span id="myipLabel">내 IP</span> <code id="myipVal"></code><button class="copy" id="myipCopy" title="복사">복사</button></div>
       <div class="iprow">
         <input type="text" id="ipInput" placeholder="예: 192.168.0.42" autocomplete="off" inputmode="decimal" />
         <button id="ipAddBtn">추가</button>
@@ -39,9 +40,9 @@
       <p class="empty" id="targetsEmpty">브로드캐스트가 막힌 망이면 친구 IP를 직접 추가하세요.</p>
     </div>
 
-    <div class="sec-label">URL 공유</div>
+    <div class="sec-label" id="shareLabel">URL 공유</div>
     <div class="share-box">
-      <label class="filebtn">파일 공유 링크 만들기
+      <label class="filebtn"><span id="shareCreateLabel">파일 공유 링크 만들기</span>
         <input type="file" id="shareInput" hidden />
       </label>
       <ul class="shares" id="shares"></ul>
@@ -62,12 +63,12 @@
     <section class="log" id="log">
       <div class="placeholder" id="placeholder">
         <div class="big">RP</div>
-        <p>왼쪽에서 피어를 고르면 대화를 볼 수 있습니다.<br />브라우저를 다시 열어도 히스토리는 유지됩니다.</p>
+        <p id="placeholderText">왼쪽에서 피어를 고르면 대화를 볼 수 있습니다.<br />브라우저를 다시 열어도 히스토리는 유지됩니다.</p>
       </div>
     </section>
 
     <footer class="composer" id="composer" hidden>
-      <label class="attach" title="파일 전송">파일
+      <label class="attach" id="attachLabel" title="파일 전송"><span id="attachText">파일</span>
         <input type="file" id="fileInput" hidden />
       </label>
       <input type="text" id="text" placeholder="메시지를 입력하세요" autocomplete="off" />
@@ -97,7 +98,7 @@
 
 <div class="bye" id="bye" hidden>
   <div class="big">RP</div>
-  <p>RedPhone이 종료되었습니다.<br />창을 닫아도 됩니다.</p>
+  <p id="byeText">RedPhone이 종료되었습니다.<br />창을 닫아도 됩니다.</p>
 </div>
 
 <script src="/app.js"></script>
