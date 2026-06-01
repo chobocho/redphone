@@ -49,9 +49,9 @@ func Generate(commonName string) (Identity, error) {
 		NotAfter:     now.Add(365 * 24 * time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-		// SAN을 채워두면 어떤 호스트명/IP로 접근해도 핸드셰이크 자체는 통과.
-		// 진짜 신뢰 검사는 핀닝이 한다.
-		DNSNames:    []string{"localhost", commonName},
+		// SAN은 ASCII 호스트명만 넣는다. 신뢰는 핀닝이 담당하므로
+		// 표시 이름은 인증서에 실을 필요가 없다.
+		DNSNames:    []string{"localhost"},
 		IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 	}
 	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)

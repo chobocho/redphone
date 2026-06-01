@@ -54,6 +54,17 @@ func TestGenerateProducesUsableCert(t *testing.T) {
 	}
 }
 
+// 표시 이름이 유니코드여도 SAN에 넣지 않으므로 인증서 생성이 실패하면 안 된다.
+func TestGenerateAcceptsUnicodeCommonName(t *testing.T) {
+	id, err := Generate("울트라")
+	if err != nil {
+		t.Fatalf("generate unicode name: %v", err)
+	}
+	if id.Cert.Leaf == nil {
+		t.Fatal("missing leaf cert")
+	}
+}
+
 // 지문이 다른 인증서를 제시하는 서버는 거부되어야 한다(MITM 방어).
 func TestPinnedConfigRejectsMismatch(t *testing.T) {
 	server, _ := Generate("server")
