@@ -48,6 +48,29 @@ func TestHistoryAllIsDefensiveCopy(t *testing.T) {
 	}
 }
 
+func TestHistoryByPeerFiltersEntries(t *testing.T) {
+	h := NewHistory()
+	defer h.Close()
+
+	if _, err := h.AddEntry(Entry{PeerID: "a", Dir: "out", Text: "one"}); err != nil {
+		t.Fatalf("AddEntry #1: %v", err)
+	}
+	if _, err := h.AddEntry(Entry{PeerID: "b", Dir: "in", Text: "two"}); err != nil {
+		t.Fatalf("AddEntry #2: %v", err)
+	}
+	if _, err := h.AddEntry(Entry{PeerID: "a", Dir: "in", Text: "three"}); err != nil {
+		t.Fatalf("AddEntry #3: %v", err)
+	}
+
+	got, err := h.ByPeer("a")
+	if err != nil {
+		t.Fatalf("ByPeer: %v", err)
+	}
+	if len(got) != 2 || got[0].Text != "one" || got[1].Text != "three" {
+		t.Fatalf("unexpected peer history: %+v", got)
+	}
+}
+
 func TestHistoryConcurrentAdd(t *testing.T) {
 	h := NewHistory()
 	defer h.Close()

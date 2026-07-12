@@ -253,6 +253,33 @@ func TestDeleteHistoryClearsSelectedPeer(t *testing.T) {
 	}
 }
 
+func TestHistoryCanFilterByPeerQuery(t *testing.T) {
+	hist := message.NewHistory()
+	defer hist.Close()
+	if _, err := hist.AddEntry(message.Entry{PeerID: "A", Dir: "in", Text: "keep"}); err != nil {
+		t.Fatalf("AddEntry A: %v", err)
+	}
+	if _, err := hist.AddEntry(message.Entry{PeerID: "B", Dir: "out", Text: "drop"}); err != nil {
+		t.Fatalf("AddEntry B: %v", err)
+	}
+
+	srv := New(Options{Reg: peer.NewRegistry(), SelfID: "me", Name: "me", History: hist})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/history?peerId=A", nil)
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d", rec.Code)
+	}
+
+	var got []message.Entry
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(got) != 1 || got[0].PeerID != "A" || got[0].Text != "keep" {
+		t.Fatalf("unexpected filtered history: %+v", got)
+	}
+}
+
 func TestDeleteEntryRemovesOnlySelectedMessage(t *testing.T) {
 	hist := message.NewHistory()
 	defer hist.Close()

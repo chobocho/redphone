@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chobocho/redphone/internal/message"
@@ -107,11 +108,21 @@ func (s *Server) handleInboxMessage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// handleHistory returns the persisted chat history for UI hydration.
-func (s *Server) handleHistory(w http.ResponseWriter, _ *http.Request) {
+// handleHistory returns persisted chat history for UI hydration. With peerId it
+// returns only that conversation; without peerId it returns the full local log.
+func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	var entries []message.Entry
 	if s.opt.History != nil {
-		all, err := s.opt.History.All()
+		peerID := strings.TrimSpace(r.URL.Query().Get("peerId"))
+		var (
+			all []message.Entry
+			err error
+		)
+		if peerID == "" {
+			all, err = s.opt.History.All()
+		} else {
+			all, err = s.opt.History.ByPeer(peerID)
+		}
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "history failed"})
 			return

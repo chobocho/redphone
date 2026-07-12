@@ -158,6 +158,40 @@ func (h *History) All() ([]Entry, error) {
 	return out, nil
 }
 
+// ByPeer returns chat entries for one peer ordered by insertion.
+func (h *History) ByPeer(peerID string) ([]Entry, error) {
+	if h == nil || h.db == nil {
+		return nil, nil
+	}
+	peerID = strings.TrimSpace(peerID)
+	if peerID == "" {
+		return nil, errors.New("peer id required")
+	}
+	rows, err := h.db.Query(`
+		SELECT id, peer_id, dir, text, ts, from_id, from_name
+		FROM chat_history
+		WHERE peer_id = ?
+		ORDER BY id
+	`, peerID)
+	if err != nil {
+		return nil, fmt.Errorf("message: select peer entries: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Entry
+	for rows.Next() {
+		var e Entry
+		if err := rows.Scan(&e.ID, &e.PeerID, &e.Dir, &e.Text, &e.TS, &e.FromID, &e.From); err != nil {
+			return nil, fmt.Errorf("message: scan entry: %w", err)
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("message: rows: %w", err)
+	}
+	return out, nil
+}
+
 // Clear deletes chat entries for one peer. Broadcast messages use BroadcastPeerID.
 func (h *History) Clear(peerID string) error {
 	if h == nil || h.db == nil {

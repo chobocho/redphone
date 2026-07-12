@@ -58,7 +58,7 @@ a{color:var(--red-soft);text-decoration:none}
 a:hover{text-decoration:underline}
 
 /* ---------- layout ---------- */
-.shell{display:grid;grid-template-columns:262px 1fr;min-height:100vh}
+.shell{display:grid;grid-template-columns:262px minmax(0,1fr);min-height:100vh}
 .sidebar{
   position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
   border-right:1px solid var(--line);background:rgba(15,18,23,.78);
@@ -227,7 +227,7 @@ details .body{padding:0 16px 14px}
 /* ---------- mobile / Fold ---------- */
 .menu-btn{display:none}
 @media(max-width:920px){
-  .shell{grid-template-columns:1fr}
+  .shell{grid-template-columns:minmax(0,1fr)}
   .sidebar{position:fixed;z-index:50;width:280px;left:-300px;transition:left .25s;box-shadow:0 0 40px rgba(0,0,0,.6)}
   .sidebar.open{left:0}
   .main{padding:74px 18px 110px}
@@ -240,6 +240,9 @@ details .body{padding:0 16px 14px}
   h2.sec{font-size:21px}
   .scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40}
   .scrim.show{display:block}
+  /* 좁은 화면: 넓은 표는 자체 가로 스크롤 (페이지 넘침 방지) */
+  .tbl{display:block;overflow-x:auto;white-space:nowrap}
+  .tbl thead,.tbl tbody{display:table;width:100%;min-width:520px}
 }
 </style>
 </head>
@@ -255,7 +258,7 @@ details .body{padding:0 16px 14px}
       <div class="phone">☎</div>
       <div>
         <h1>RedPhone</h1>
-        <small>WORK ORDER · v1</small>
+        <small>CURRENT SPEC · v2</small>
       </div>
     </div>
     <p style="font-size:11.5px;color:var(--txt-faint);font-family:var(--mono);margin:8px 2px 0;line-height:1.5">
@@ -299,8 +302,8 @@ details .body{padding:0 16px 14px}
 
       <div class="grid g3">
         <div class="card"><h4><span class="led on"></span>자동 발견</h4><p>UDP 브로드캐스트로 같은 서브넷의 피어를 서버 없이 탐지. 주기적 HELLO + TTL 만료.</p></div>
-        <div class="card"><h4><span class="led on"></span>쪽지 · 파일</h4><p>피어 간 HTTP로 메시지/파일 직접 전송. 브라우저는 WebSocket으로 실시간 수신.</p></div>
-        <div class="card"><h4><span class="led amber"></span>URL 공유 <span class="chip red" style="font-size:9.5px;padding:1px 7px">신규</span></h4><p>파일을 <code>http://내IP:포트/s/&lt;token&gt;</code>로 발행. 이미지는 인라인, 텍스트는 미리보기.</p></div>
+        <div class="card"><h4><span class="led on"></span>쪽지 · 파일</h4><p>쪽지는 fingerprint pinning된 HTTPS, 파일 본문은 토큰 기반 HTTP 스트림으로 직접 전송. 브라우저는 WebSocket으로 실시간 수신.</p></div>
+        <div class="card"><h4><span class="led on"></span>URL 공유</h4><p>파일을 <code>http://내IP:포트/s/&lt;token&gt;</code>로 발행. 이미지는 인라인, 텍스트는 미리보기.</p></div>
       </div>
 
       <h3><span class="hash">#</span>설계 원칙</h3>
@@ -308,7 +311,7 @@ details .body{padding:0 16px 14px}
         <li><strong>의존성 최소화</strong> — 표준 라이브러리 우선. 외부 패키지는 <em>왜 필요한지</em> 정당화될 때만.</li>
         <li><strong>단일 실행 파일</strong> — 원본처럼 <code>redphone.exe</code> 하나로 무설치 실행. 웹 자산은 <code>embed.FS</code>로 바이너리에 내장.</li>
         <li><strong>서버리스 P2P</strong> — 중앙 서버 0대. 모든 인스턴스가 곧 서버이자 클라이언트.</li>
-        <li><strong>두 가지 종료 경로</strong> — 콘솔에 <code>exit</code> 입력, 또는 웹 UI의 <strong>종료</strong> 버튼. 둘 다 graceful shutdown.</li>
+        <li><strong>세 가지 종료 경로</strong> — 콘솔에 <code>exit</code> 입력, 웹 UI의 <strong>종료</strong> 버튼, 그리고 SIGINT. 셋 다 graceful shutdown.</li>
         <li><strong>성능</strong> — goroutine + channel 기반, 락 경합 최소화, <code>-race</code> 통과를 DoD에 포함.</li>
       </ul>
 
@@ -323,7 +326,7 @@ details .body{padding:0 16px 14px}
     <section id="s1">
       <p class="kicker">Dependencies</p>
       <h2 class="sec"><span class="id">01</span> 기술 스택</h2>
-      <p class="sec-sub">표준 라이브러리로 최대한 끝낸다. 외부 의존성은 단 하나(WebSocket)만 허용하며, 그 이유를 아래에 명시한다.</p>
+      <p class="sec-sub">표준 라이브러리로 최대한 끝낸다. 외부 의존성은 WebSocket과 순수 Go SQLite 드라이버로 제한하며, 그 이유를 아래에 명시한다.</p>
 
       <div class="grid g2">
         <div class="card">
@@ -333,12 +336,12 @@ details .body{padding:0 16px 14px}
         </div>
         <div class="card">
           <h4>net/http · 표준</h4>
-          <p>웹 UI 서빙 + 피어 간 메시지/파일 전송 + URL 공유 엔드포인트 전부 담당.</p>
-          <p class="why"><b>WHY</b> 메시징·파일·공유를 하나의 HTTP 평면으로 통일 → 코드/포트 단순화.</p>
+          <p>웹 UI 서빙 + REST API + 피어 간 HTTP/HTTPS 송수신 + URL 공유 엔드포인트 담당.</p>
+          <p class="why"><b>WHY</b> UI·API·공유·파일 본문을 표준 HTTP 평면으로 통일하고, 메시지/파일 메타는 HTTPS로 보호.</p>
         </div>
         <div class="card">
           <h4>embed · 표준</h4>
-          <p><code>//go:embed web/static</code>로 HTML/CSS/JS를 바이너리에 내장.</p>
+          <p><code>//go:embed static</code>(internal/web 패키지 내부 기준)으로 HTML/CSS/JS를 바이너리에 내장.</p>
           <p class="why"><b>WHY</b> "실행 파일 하나" 원칙. 배포 시 자산 누락 없음.</p>
         </div>
         <div class="card">
@@ -348,12 +351,19 @@ details .body{padding:0 16px 14px}
         </div>
       </div>
 
-      <h3><span class="hash">#</span>유일한 외부 의존성</h3>
-      <div class="card" style="border-color:rgba(255,59,59,.35)">
-        <h4><span class="led amber"></span>github.com/coder/websocket</h4>
-        <p>브라우저 ↔ Go 백엔드 실시간 푸시(피어 갱신, 수신 쪽지/파일 알림)용.</p>
-        <p class="why"><b>WHY</b> 표준 라이브러리에 WS가 없음. <code>coder/websocket</code>은 API가 작고 컨텍스트 친화적이라
-        <code>gorilla/websocket</code>보다 종료 처리가 깔끔. (대안: SSE로 가면 의존성 0이지만 양방향 제어 메시지에서 불리.)</p>
+      <h3><span class="hash">#</span>외부 의존성</h3>
+      <div class="grid g2">
+        <div class="card" style="border-color:rgba(255,59,59,.35)">
+          <h4><span class="led amber"></span>github.com/coder/websocket</h4>
+          <p>브라우저 ↔ Go 백엔드 실시간 푸시(피어 갱신, 수신 쪽지/파일 알림)용.</p>
+          <p class="why"><b>WHY</b> 표준 라이브러리에 WS가 없음. <code>coder/websocket</code>은 API가 작고 컨텍스트 친화적이라
+          <code>gorilla/websocket</code>보다 종료 처리가 깔끔.</p>
+        </div>
+        <div class="card" style="border-color:rgba(255,59,59,.35)">
+          <h4><span class="led amber"></span>modernc.org/sqlite</h4>
+          <p>채팅 히스토리를 <code>redphone.db</code>에 영속 저장하는 순수 Go SQLite 드라이버.</p>
+          <p class="why"><b>WHY</b> 브라우저를 닫아도 기록을 유지하면서 cgo/Termux 제약을 피한다.</p>
+        </div>
       </div>
 
       <div class="callout cmp">
@@ -365,7 +375,7 @@ details .body{padding:0 16px 14px}
       <div class="chips">
         <span class="chip red">Go 1.22+</span>
         <span class="chip">stdlib: net · net/http · embed · context · sync · os/signal · encoding/json</span>
-        <span class="chip">dep: coder/websocket</span>
+        <span class="chip">dep: coder/websocket · modernc.org/sqlite</span>
       </div>
     </section>
 
@@ -376,26 +386,27 @@ details .body{padding:0 16px 14px}
       <p class="sec-sub">하나의 프로세스 안에서 goroutine들이 <code>context.Context</code> 하나를 공유한다. 종료 신호는 어디서 오든 그 context를 취소해 전부 정리한다.</p>
 
       <div class="diagram">
-        <svg viewBox="0 0 660 360" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+        <svg id="arch-svg" viewBox="0 0 660 360" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
           <defs>
             <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
               <path d="M0,0 L6,3 L0,6 Z" fill="#ff6b6b"/>
             </marker>
             <style>
-              .box{fill:#13161b;stroke:#272d37;stroke-width:1.2;rx:9}
-              .acc{fill:#191d24;stroke:#7c1d20;stroke-width:1.4}
-              .lbl{fill:#dfe4ec;font-size:12px;font-weight:700}
-              .sub{fill:#9aa3b0;font-size:10px}
-              .wire{stroke:#3a4150;stroke-width:1.3;fill:none}
-              .wred{stroke:#ff6b6b;stroke-width:1.4;fill:none;marker-end:url(#ah)}
-              .tw{fill:#6b7480;font-size:9.5px}
+              #arch-svg .box{fill:#13161b;stroke:#272d37;stroke-width:1.2;rx:9}
+              #arch-svg .box.browser{stroke:#37d99a}
+              #arch-svg .acc{fill:#191d24;stroke:#7c1d20;stroke-width:1.4}
+              #arch-svg .lbl{fill:#dfe4ec;font-size:12px;font-weight:700}
+              #arch-svg .sub{fill:#9aa3b0;font-size:10px}
+              #arch-svg .wire{stroke:#3a4150;stroke-width:1.3;fill:none}
+              #arch-svg .wred{stroke:#ff6b6b;stroke-width:1.4;fill:none;marker-end:url(#ah)}
+              #arch-svg .tw{fill:#6b7480;font-size:9.5px}
             </style>
           </defs>
 
           <!-- app core -->
           <rect class="acc" x="240" y="150" width="180" height="60" rx="10"/>
           <text class="lbl" x="330" y="176" text-anchor="middle">App Core</text>
-          <text class="sub" x="330" y="194" text-anchor="middle">context · errgroup</text>
+          <text class="sub" x="330" y="194" text-anchor="middle">context · sync.WaitGroup</text>
 
           <!-- discovery -->
           <rect class="box" x="30" y="30" width="180" height="58" rx="9"/>
@@ -407,10 +418,10 @@ details .body{padding:0 16px 14px}
           <text class="lbl" x="110" y="174" text-anchor="middle">Peer Registry</text>
           <text class="sub" x="110" y="192" text-anchor="middle">RWMutex map</text>
 
-          <!-- http server -->
+          <!-- http/https server -->
           <rect class="box" x="460" y="30" width="180" height="58" rx="9"/>
-          <text class="lbl" x="550" y="54" text-anchor="middle">HTTP Server</text>
-          <text class="sub" x="550" y="72" text-anchor="middle">UI · API · inbox · /s</text>
+          <text class="lbl" x="550" y="54" text-anchor="middle">HTTP/HTTPS Server</text>
+          <text class="sub" x="550" y="72" text-anchor="middle">UI · API · TLS inbox · /s</text>
 
           <!-- ws hub -->
           <rect class="box" x="460" y="150" width="180" height="58" rx="9"/>
@@ -428,7 +439,7 @@ details .body{padding:0 16px 14px}
           <text class="sub" x="120" y="308" text-anchor="middle">"exit" · SIGINT</text>
 
           <!-- browser -->
-          <rect class="box" x="248" y="290" width="164" height="44" rx="9" stroke="#37d99a"/>
+          <rect class="box browser" x="248" y="290" width="164" height="44" rx="9"/>
           <text class="lbl" x="330" y="316" text-anchor="middle">Browser UI</text>
 
           <!-- wires -->
@@ -441,6 +452,8 @@ details .body{padding:0 16px 14px}
           <text class="tw" x="214" y="250">cancel()</text>
           <path class="wred" d="M548 208 L420 300 L412 312"/>
           <text class="tw" x="470" y="262">push (ws)</text>
+          <path class="wire" d="M412 296 L500 88"/>
+          <text class="tw" x="452" y="180">HTTP (UI·API)</text>
           <path class="wire" d="M120 88 L110 150"/>
         </svg>
       </div>
@@ -452,7 +465,7 @@ details .body{padding:0 16px 14px}
           <tr><td class="m">udpListen</td><td>HELLO/BYE 수신 → 레지스트리 upsert/remove</td><td>conn close + ctx</td></tr>
           <tr><td class="m">udpBroadcast</td><td>5초 ticker로 HELLO 송신</td><td>ctx.Done()</td></tr>
           <tr><td class="m">peerSweep</td><td>3초 ticker로 LastSeen 만료 피어 제거</td><td>ctx.Done()</td></tr>
-          <tr><td class="m">httpServe</td><td>UI/API/inbox/공유 서빙</td><td>srv.Shutdown(ctx)</td></tr>
+          <tr><td class="m">httpServe / httpsServe</td><td>UI/API/공유/파일본문 + TLS inbox 서빙</td><td>Shutdown(ctx)</td></tr>
           <tr><td class="m">wsHub.run</td><td>register/unregister/broadcast 채널 단일 소유</td><td>ctx.Done()</td></tr>
           <tr><td class="m">stdinRead</td><td>한 줄씩 읽어 <code>exit</code> 감지</td><td>cancel() 호출</td></tr>
           <tr><td class="m">signalWatch</td><td>SIGINT/SIGTERM 감지</td><td>cancel() 호출</td></tr>
@@ -471,29 +484,30 @@ details .body{padding:0 16px 14px}
     <section id="s3">
       <p class="kicker">Wire Format</p>
       <h2 class="sec"><span class="id">03</span> 프로토콜 설계</h2>
-      <p class="sec-sub">발견은 UDP, 그 외 모든 것은 HTTP. 포트는 고정 + 자동 폴백.</p>
+      <p class="sec-sub">발견은 UDP, UI·공유·파일 본문은 HTTP, 메시지와 파일 메타데이터는 fingerprint pinning된 HTTPS. 포트는 기본값 + 자동 폴백.</p>
 
       <h3><span class="hash">#</span>포트</h3>
       <table class="tbl">
         <thead><tr><th>이름</th><th>값</th><th>용도</th></tr></thead>
         <tbody>
-          <tr><td class="m">DISCOVERY_PORT</td><td><code>17000/udp</code> 고정</td><td>브로드캐스트 송수신 (255.255.255.255)</td></tr>
-          <tr><td class="m">HTTP_PORT</td><td><code>17080</code> 우선, 사용 중이면 OS 자동(:0)</td><td>UI·API·inbox·공유. 실제 포트를 HELLO에 실어 광고</td></tr>
+          <tr><td class="m">DISCOVERY_PORT</td><td><code>17000/udp</code> 고정</td><td>브로드캐스트 송수신 (255.255.255.255). 같은 PC 다중 인스턴스 테스트를 위해 discovery 소켓은 <code>SO_REUSEADDR</code>를 bind 전에 설정</td></tr>
+          <tr><td class="m">HTTP_PORT</td><td><code>17080</code> 우선, 사용 중이면 OS 자동(:0)</td><td>웹 UI·REST API·공유 링크·파일 본문 스트림. 실제 포트를 HELLO에 실어 광고</td></tr>
+          <tr><td class="m">HTTPS_PORT</td><td><code>17443</code> 우선, 사용 중이면 OS 자동(:0)</td><td>피어 간 쪽지와 파일 announce. self-signed 인증서 fingerprint를 HELLO에 실어 pinning</td></tr>
         </tbody>
       </table>
 
       <h3><span class="hash">#</span>Discovery 메시지 (JSON over UDP)</h3>
       <div class="code">
         <div class="bar"><span class="fname">udp-payload.json</span><button class="copy" data-copy="c-udp">copy</button></div>
-<pre id="c-udp"><span class="c">// HELLO — 5초마다 브로드캐스트. ip는 신뢰하지 않고 수신 패킷의 src addr를 사용한다.</span>
-{ <span class="s">"v"</span>:<span class="n">1</span>, <span class="s">"type"</span>:<span class="s">"hello"</span>, <span class="s">"id"</span>:<span class="s">"&lt;uuid&gt;"</span>, <span class="s">"name"</span>:<span class="s">"chobocho"</span>, <span class="s">"httpPort"</span>:<span class="n">17080</span>, <span class="s">"ts"</span>:<span class="n">1730000000000</span> }
+<pre id="c-udp"><span class="c">// HELLO v2 — 5초마다 브로드캐스트. ip는 신뢰하지 않고 수신 패킷의 src addr를 사용한다.</span>
+{ <span class="s">"v"</span>:<span class="n">2</span>, <span class="s">"type"</span>:<span class="s">"hello"</span>, <span class="s">"id"</span>:<span class="s">"&lt;runtime-id&gt;"</span>, <span class="s">"uid"</span>:<span class="s">"&lt;stable-id&gt;"</span>, <span class="s">"name"</span>:<span class="s">"chobocho"</span>, <span class="s">"httpPort"</span>:<span class="n">17080</span>, <span class="s">"httpsPort"</span>:<span class="n">17443</span>, <span class="s">"fp"</span>:<span class="s">"&lt;leaf-cert-sha256&gt;"</span>, <span class="s">"ts"</span>:<span class="n">1730000000000</span> }
 
 <span class="c">// BYE — graceful shutdown 직전 1회 송신. 상대는 즉시 목록에서 제거.</span>
-{ <span class="s">"v"</span>:<span class="n">1</span>, <span class="s">"type"</span>:<span class="s">"bye"</span>, <span class="s">"id"</span>:<span class="s">"&lt;uuid&gt;"</span> }</pre>
+{ <span class="s">"v"</span>:<span class="n">2</span>, <span class="s">"type"</span>:<span class="s">"bye"</span>, <span class="s">"id"</span>:<span class="s">"&lt;runtime-id&gt;"</span>, <span class="s">"uid"</span>:<span class="s">"&lt;stable-id&gt;"</span> }</pre>
       </div>
       <div class="callout">
         <span class="tag">// 보안/견고성 규칙</span>
-        <p>자기 자신의 브로드캐스트는 <code>id</code>로 필터링한다. 피어의 <strong>IP는 페이로드가 아니라 UDP 패킷의 출발지 주소</strong>에서 취한다(스푸핑 방지). <code>LastSeen</code>이 15초 넘으면 자동 만료.</p>
+        <p>자기 자신의 브로드캐스트는 <code>id</code>로 필터링한다. 피어의 <strong>IP는 페이로드가 아니라 UDP 패킷의 출발지 주소</strong>에서 취한다(스푸핑 방지). v2 HELLO는 <code>fp</code>가 없으면 거부하고, <code>LastSeen</code>이 15초 넘으면 자동 만료.</p>
       </div>
 
       <h3><span class="hash">#</span>HTTP 엔드포인트</h3>
@@ -503,13 +517,19 @@ details .body{padding:0 16px 14px}
           <tr><td class="m">GET /</td><td>웹 UI (embed.FS)</td></tr>
           <tr><td class="m">GET /ws</td><td>WebSocket 업그레이드 — 피어 갱신/수신 알림 푸시</td></tr>
           <tr><td class="m">GET /api/peers</td><td>현재 피어 스냅샷(JSON)</td></tr>
-          <tr><td class="m">POST /api/send</td><td><code>{peerId,text}</code> → 상대 <code>/inbox/message</code>로 중계</td></tr>
-          <tr><td class="m">POST /api/sendfile</td><td>multipart → 상대 <code>/inbox/file</code>로 중계</td></tr>
+          <tr><td class="m">GET /api/self · PUT /api/self/name</td><td>내 stable id·이름·LAN IP 조회 / 표시 이름 변경(<code>redphone-name.txt</code> 저장)</td></tr>
+          <tr><td class="m">GET /api/history[?peerId=]</td><td>SQLite 히스토리 전체 또는 특정 피어 대화 반환. 새로고침 복원용</td></tr>
+          <tr><td class="m">DELETE /api/history/{peerID} · DELETE /api/history/entry/{entryID}</td><td>로컬 히스토리의 피어별 삭제 / 단일 메시지 삭제</td></tr>
+          <tr><td class="m">POST /api/send</td><td><code>{peerId,text}</code> → 상대 HTTPS <code>/inbox/message</code>로 중계</td></tr>
+          <tr><td class="m">POST /api/broadcast</td><td><code>{text}</code> → 온라인 피어 전체에 HTTPS 쪽지 중계</td></tr>
+          <tr><td class="m">POST /api/sendfile</td><td>브라우저 multipart → 상대 HTTPS announce → HTTP body PUT으로 스트리밍 중계</td></tr>
           <tr><td class="m">POST /api/share</td><td>multipart 업로드 → 토큰 발급, <code>{url,token,kind}</code> 반환</td></tr>
           <tr><td class="m">GET /s/{token}</td><td>공유 파일 서빙: image→인라인, text→미리보기, 그 외→다운로드</td></tr>
           <tr><td class="m">GET /api/shares · DELETE /api/share/{token}</td><td>공유 목록 / 회수</td></tr>
-          <tr><td class="m">POST /inbox/message</td><td>피어→나: 쪽지 수신 → WS로 브라우저에 푸시 + 히스토리 저장</td></tr>
-          <tr><td class="m">POST /inbox/file</td><td>피어→나: 파일 수신 → <code>./downloads/</code> 저장 + 알림</td></tr>
+          <tr><td class="m">POST /inbox/message</td><td>피어→나: TLS-only 쪽지 수신 → WS로 브라우저에 푸시 + SQLite 저장</td></tr>
+          <tr><td class="m">POST /inbox/file/announce</td><td>피어→나: TLS-only 파일명·송신자 메타 수신 → 1회용 업로드 토큰 발급</td></tr>
+          <tr><td class="m">PUT /inbox/file/{token}</td><td>피어→나: 파일 본문 스트리밍 저장 → <code>./downloads/</code> 링크를 히스토리에 기록</td></tr>
+          <tr><td class="m">GET /downloads/{name}</td><td>수신 파일 열기. 경로 탈출 차단</td></tr>
           <tr><td class="m">POST /api/shutdown</td><td><strong>종료 버튼</strong> → ctx 취소(graceful)</td></tr>
         </tbody>
       </table>
@@ -519,9 +539,9 @@ details .body{padding:0 16px 14px}
         <div class="bar"><span class="fname">shutdown-flow</span></div>
 <pre>  exit(stdin) ─┐
   종료(POST)  ─┼─▶ cancel(ctx) ─▶ ① BYE 브로드캐스트
-  SIGINT      ─┘                  ② srv.Shutdown(timeout 3s)
+  SIGINT      ─┘                  ② httpSrv/httpsSrv.Shutdown(timeout 3s)
                                   ③ ticker/hub 정지, ws 클라이언트 close
-                                  ④ errgroup.Wait() ─▶ exit(0)</pre>
+                                  ④ wg.Wait() (sync.WaitGroup) ─▶ exit(0)</pre>
       </div>
     </section>
 
@@ -538,11 +558,13 @@ details .body{padding:0 16px 14px}
 │  ├─ app/        <span class="c">// 배선·생명주기·graceful shutdown</span>
 │  ├─ discovery/  <span class="c">// UDP HELLO/BYE 인코딩·송수신</span>
 │  ├─ peer/       <span class="c">// Peer 레지스트리 (upsert/expire/snapshot)</span>
-│  ├─ web/        <span class="c">// http 핸들러 + WS hub + embed 자산</span>
+│  ├─ web/        <span class="c">// HTTP/HTTPS 핸들러 + WS hub + embed 자산</span>
 │  │  └─ static/  <span class="c">//   index.html · app.js · style.css</span>
-│  ├─ message/    <span class="c">// 쪽지 send/inbox + 히스토리</span>
+│  ├─ message/    <span class="c">// 쪽지 payload + SQLite 히스토리</span>
 │  ├─ transfer/   <span class="c">// 파일 send/inbox</span>
-│  └─ share/      <span class="c">// 토큰 발급 + content-type 분기 서빙</span>
+│  ├─ share/      <span class="c">// 토큰 발급 + content-type 분기 서빙</span>
+│  ├─ peerbook/   <span class="c">// peers.json 친구 IP 저장소</span>
+│  └─ tlsid/      <span class="c">// self-signed TLS identity + fingerprint pinning</span>
 ├─ downloads/     <span class="c">// 수신 파일 (gitignore)</span>
 ├─ CLAUDE.md
 ├─ Todo.md
@@ -561,7 +583,7 @@ details .body{padding:0 16px 14px}
         <div class="body">
           <ul>
             <li>실행 즉시 HELLO 브로드캐스트 시작, 5초 주기.</li>
-            <li>다른 인스턴스의 HELLO 수신 시 목록에 추가/갱신(이름·IP·httpPort·LastSeen).</li>
+            <li>다른 인스턴스의 HELLO 수신 시 목록에 추가/갱신(이름·IP·httpPort·httpsPort·fingerprint·LastSeen).</li>
             <li>15초간 HELLO 없으면 오프라인 처리(목록에서 제거).</li>
             <li><b>AC</b>: 같은 LAN의 두 인스턴스가 ≤6초 내 서로를 목록에 표시. 한쪽 종료 시 ≤2초 내(BYE) 사라짐.</li>
           </ul>
@@ -572,8 +594,9 @@ details .body{padding:0 16px 14px}
         <summary><span class="led on"></span>F2. 쪽지 송수신</summary>
         <div class="body">
           <ul>
-            <li>피어 선택 → 텍스트 입력 → 전송. 내 백엔드가 상대 <code>/inbox/message</code>로 POST.</li>
-            <li>수신 측은 WS로 브라우저에 즉시 푸시, 대화 히스토리(메모리, 인스턴스 수명 동안)에 저장.</li>
+            <li>피어 선택 → 텍스트 입력 → 전송. 내 백엔드가 상대 HTTPS <code>/inbox/message</code>로 POST하고 fingerprint pinning으로 피어를 검증.</li>
+            <li>수신 측은 WS로 브라우저에 즉시 푸시, 대화 히스토리는 SQLite(<code>redphone.db</code>)에 영속 저장.</li>
+            <li>브라우저 새로고침 시 <code>GET /api/history</code>로 전체 히스토리를 복원하고, 필요한 경우 <code>?peerId=…</code>로 특정 대화만 조회.</li>
             <li><b>AC</b>: A→B 전송 후 B 화면에 ≤1초 내 표시. 상대 오프라인이면 전송 실패를 UI에 명시.</li>
           </ul>
         </div>
@@ -583,8 +606,10 @@ details .body{padding:0 16px 14px}
         <summary><span class="led on"></span>F3. 파일 전송</summary>
         <div class="body">
           <ul>
-            <li>multipart로 상대 <code>/inbox/file</code>에 전송, 수신 측 <code>./downloads/</code> 저장.</li>
-            <li>파일명 충돌 시 <code>name (2).ext</code> 식으로 회피. 경로 탈출(<code>../</code>) 차단.</li>
+            <li>브라우저는 <code>POST /api/sendfile</code> multipart로 업로드. 백엔드는 상대 HTTPS <code>/inbox/file/announce</code>로 파일명·송신자 메타를 먼저 보내고, 받은 토큰으로 HTTP <code>PUT /inbox/file/{token}</code>에 본문을 스트리밍.</li>
+            <li>수신 측은 <code>./downloads/</code>에 저장하고 <code>/downloads/{name}</code> 링크를 SQLite 히스토리에 남긴다.</li>
+            <li>파일명 충돌 시 <code>name (2).ext</code> 식으로 회피. 경로 탈출(<code>../</code>) 차단.
+              대용량(100MB) 전송 중 RSS 증가 ≤ 32MB (io.Copy 스트리밍, <code>runtime.ReadMemStats</code>로 측정).</li>
             <li><b>AC</b>: 임의 바이너리 왕복 후 SHA-256 동일. 100MB도 메모리 폭증 없이 스트리밍.</li>
           </ul>
         </div>
@@ -621,13 +646,14 @@ details .body{padding:0 16px 14px}
       </details>
 
       <details>
-        <summary><span class="led on"></span>F6. 종료 (exit / 버튼)</summary>
+        <summary><span class="led on"></span>F6. 종료 (exit / 버튼 / SIGINT)</summary>
         <div class="body">
           <ul>
             <li>콘솔에 <code>exit</code>(개행 포함) 입력 → graceful shutdown.</li>
             <li>웹 UI <strong>종료</strong> 버튼 → <code>POST /api/shutdown</code> → 동일 경로.</li>
-            <li>둘 다 BYE 브로드캐스트 후 3초 타임아웃 내 서버·goroutine 정리, exit code 0.</li>
-            <li><b>AC</b>: 두 경로 모두 좀비 goroutine 없이 종료(<code>go test -race</code> 통과). 포트 즉시 해제.</li>
+            <li>SIGINT/SIGTERM도 같은 root context 취소 경로로 수렴.</li>
+            <li>셋 다 BYE 브로드캐스트 후 3초 타임아웃 내 HTTP·HTTPS 서버와 goroutine을 정리, exit code 0.</li>
+            <li><b>AC</b>: 세 경로(exit·버튼·SIGINT) 모두 좀비 goroutine 없이 종료(<code>go test -race</code> 통과). 포트 즉시 해제.</li>
           </ul>
         </div>
       </details>
@@ -666,17 +692,19 @@ details .body{padding:0 16px 14px}
 WHY: 사내/가정 LAN에서 "USB로 옮기기"를 대체. 외부 클라우드·서버 의존 0.
 
 ## 기술 제약 (지킬 것)
-- Go 1.22+. stdlib 우선. 외부 의존성은 coder/websocket "하나만".
-  WHY: 배포 단순화 + 종료(close) 처리가 깔끔.
+- Go 1.22+. stdlib 우선. 외부 의존성은 coder/websocket + modernc.org/sqlite로 제한.
+  WHY: WS는 표준 라이브러리에 없고, SQLite는 cgo 없이 히스토리 영속화를 제공.
 - 웹 자산은 //go:embed 로 내장 → 실행 파일 하나로 동작.
-- 발견=UDP(17000), 그 외 전부 HTTP(17080, 사용중이면 OS자동).
+- 발견=UDP(17000), UI/API/공유/파일본문=HTTP(17080), 메시지/파일메타=HTTPS(17443). TCP 포트는 사용 중이면 OS 자동 폴백.
 - 피어 IP는 UDP 패킷 src addr에서 취득(페이로드 신뢰 금지).
+- HELLO v2는 HTTPS 포트와 leaf cert SHA-256 fingerprint를 광고하고, 피어 간 HTTPS 송신은 fingerprint pinning.
+- 채팅 히스토리는 SQLite(<code>redphone.db</code>)에 영속 저장. 공유 파일은 인스턴스 종료 시 회수.
 - 파일 저장 시 경로 탈출(../) 차단, 파일명 충돌 회피.
 
 ## 동시성 / 종료
 - root context 하나를 모든 goroutine이 공유.
 - 종료 경로 3개(stdin "exit" / POST /api/shutdown / SIGINT) → 모두 cancel(ctx).
-- 종료 시: BYE 브로드캐스트 → srv.Shutdown(3s) → ticker/hub 정지 → Wait → exit 0.
+- 종료 시: BYE 브로드캐스트 → httpSrv/httpsSrv.Shutdown(3s) → ticker/hub 정지 → Wait → exit 0.
 - WS hub는 mutex 대신 channel로 클라이언트 맵을 단일 goroutine이 소유.
 
 ## 작업 규율
@@ -687,8 +715,9 @@ WHY: 사내/가정 LAN에서 "USB로 옮기기"를 대체. 외부 클라우드·
 - 주석은 "왜"를 적는다(무엇은 코드가 말한다).
 
 ## 현재 상태
-- [ ] Phase 0 스캐폴딩  ← 여기서 시작
-- (이후 Todo.md 참조, 완료 시 본 섹션 갱신)
+- [x] Phase 0~9 기본 구현 완료.
+- [x] SQLite 히스토리, 공유 링크, 친구 IP 관리, 브로드캐스트, 커스텀 모달, 다크/라이트 테마 적용.
+- [ ] 남은 개선: 채팅 검색, 히스토리 export/import, unread 영속화, 모바일 UI 미세 조정, E2E 브라우저 테스트.
 
 ## Definition of Done (공통)
 - 해당 패키지 단위 테스트 통과 + `go vet` 무경고.
@@ -701,48 +730,42 @@ WHY: 사내/가정 LAN에서 "USB로 옮기기"를 대체. 외부 클라우드·
     <!-- 08 Todo.md -->
     <section id="s8">
       <p class="kicker">Issue List</p>
-      <h2 class="sec"><span class="id">08</span> Todo.md 템플릿</h2>
-      <p class="sec-sub">Claude Code에 줄 때 <strong>한 번에 한 이슈</strong>만 지정. 각 이슈에 "이 이슈만 처리하고 멈춰라"를 명시.</p>
+      <h2 class="sec"><span class="id">08</span> Todo.md 현재 상태</h2>
+      <p class="sec-sub">기본 구현은 완료된 상태로 정리하고, 후속 개선은 한 번에 한 이슈만 지정한다. 각 이슈에 "이 이슈만 처리하고 멈춰라"를 명시.</p>
       <div class="code">
         <div class="bar"><span class="fname">Todo.md</span><button class="copy" data-copy="c-todo">copy</button></div>
 <pre id="c-todo"># RedPhone Todo
 
 > 규칙: 한 번에 이슈 1개. TDD(RED→GREEN→리팩터). 끝나면 Git 체크포인트.
 
-## Phase 0 — 스캐폴딩 / 생명주기
-- [ ] #1 go.mod, cmd/redphone, internal/app 골격. context + signal + stdin "exit"
-      로 즉시 종료되는 빈 앱. 테스트: cancel 시 Run이 ≤100ms 내 반환.
+## 완료
+- [x] Phase 0: 스캐폴딩, 생명주기, 종료 경로, 기본 진입점
+- [x] Phase 1: 피어 레지스트리
+- [x] Phase 2: UDP HELLO/BYE discovery v2
+- [x] Phase 3: HTTP/HTTPS 서버, 정적 UI, WebSocket hub
+- [x] Phase 4: 1:1 메시지 송수신 + SQLite 히스토리
+- [x] Phase 5: 파일 전송(HTTPS announce + HTTP body PUT)
+- [x] Phase 6: URL 공유 링크
+- [x] Phase 7: 웹 UI
+- [x] Phase 8: graceful shutdown(exit·버튼·SIGINT)
+- [x] Phase 9: 문서화 및 검증 정리
+- [x] 친구 IP 직접 추가/수정/삭제, 전체 스캔
+- [x] 전체 브로드캐스트 메시지
+- [x] 채팅 URL 자동 링크 처리
+- [x] alert/confirm/prompt 제거 → 커스텀 모달 적용
+- [x] 다크/라이트 테마
 
-## Phase 1 — Peer 레지스트리
-- [ ] #2 peer.Registry: Upsert/Snapshot/Expire(ttl). 단위 테스트로 만료 검증.
+## 현재 상태
+- 메시지 히스토리는 <code>redphone.db</code>에 저장
+- 친구 IP 목록은 <code>peers.json</code>에 저장
+- <code>*.db</code>, <code>peers.json</code>, <code>downloads/</code>는 <code>.gitignore</code> 대상
 
-## Phase 2 — Discovery (UDP)
-- [ ] #3 HELLO/BYE JSON encode/decode 테스트.
-- [ ] #4 broadcast(ticker) + listen. src addr에서 IP 취득. 자기 id 필터.
-
-## Phase 3 — HTTP + WS Hub
-- [ ] #5 net/http 서버 + embed 정적 서빙 + 포트 폴백. /api/peers 핸들러 테스트.
-- [ ] #6 channel 기반 WS Hub(register/unregister/broadcast). -race 통과.
-
-## Phase 4 — 메시징
-- [ ] #7 /api/send → 상대 /inbox/message 라운드트립 테스트. 수신 시 WS 푸시.
-
-## Phase 5 — 파일 전송
-- [ ] #8 /api/sendfile → /inbox/file 스트리밍 저장. SHA-256 왕복 동일 + ../ 차단.
-
-## Phase 6 — URL 공유 (신규)
-- [ ] #9 share.Store: 토큰 발급/조회/회수 테스트.
-- [ ] #10 GET /s/{token}: image=인라인, text=미리보기, 그 외=다운로드. 404 테스트.
-
-## Phase 7 — 웹 UI
-- [ ] #11 index.html/app.js/style.css: 피어목록·대화·첨부·공유·종료버튼. 반응형(Fold).
-- [ ] #12 브라우저 자동 오픈(OS 분기).
-
-## Phase 8 — Graceful Shutdown 통합
-- [ ] #13 POST /api/shutdown + BYE 브로드캐스트 + Shutdown(3s). 두 경로 모두 -race.
-
-## Phase 9 — 다듬기
-- [ ] #14 구조화 로깅, 설정 플래그(--name --port), README 검증 절, 동시성 단순화.</pre>
+## 남은 개선 작업
+- [ ] 채팅 검색
+- [ ] 히스토리 export/import
+- [ ] 대화방별 unread 영속화
+- [ ] 모바일 UI 미세 조정
+- [ ] E2E 브라우저 테스트 추가</pre>
       </div>
     </section>
 
@@ -766,21 +789,22 @@ WHY: 사내/가정 LAN에서 "USB로 옮기기"를 대체. 외부 클라우드·
 CLAUDE.md의 제약과 DoD를 반드시 지켜. 범위를 넘기면 안 돼.</pre>
       </div>
 
-      <h3><span class="hash">#</span>Windows PowerShell · settings.json</h3>
+      <h3><span class="hash">#</span>settings.json (권한 최소화)</h3>
+      <p class="sec-sub" style="margin-bottom:10px">개인 프로젝트용 — 권한 프롬프트 최소화 설정. (JSON은 주석을 허용하지 않으므로 아래 블록을 그대로 복사하면 된다.)</p>
       <div class="code">
         <div class="bar"><span class="fname">.claude/settings.json</span><button class="copy" data-copy="c-settings">copy</button></div>
-<pre id="c-settings"><span class="c">// 개인 프로젝트: 권한 프롬프트 최소화</span>
-{
+<pre id="c-settings">{
   <span class="s">"permissions"</span>: { <span class="s">"defaultMode"</span>: <span class="s">"bypassPermissions"</span> },
   <span class="s">"env"</span>: { <span class="s">"GOFLAGS"</span>: <span class="s">"-count=1"</span> }
-}
-<span class="c">// 회사 레포라면 acceptEdits + allowlist(예: Bash(go test:*), Bash(go vet:*))로 좁혀라.</span></pre>
+}</pre>
       </div>
+      <p class="sec-sub" style="margin-top:8px">회사 레포라면 <code>acceptEdits</code> + allowlist(예: <code>Bash(go test:*)</code>, <code>Bash(go vet:*)</code>)로 좁혀라.</p>
 
       <div class="callout ok">
         <span class="tag">// 검증 스모크 테스트</span>
-        <p>빌드 후 같은 PC에서 포트만 바꿔 두 인스턴스를 띄워(<code>--port 17080</code>, <code>--port 17081</code>) 상호 발견·쪽지·공유 링크를 확인.
-        그다음 다른 PC로 LAN 검증. 마지막에 <code>exit</code>와 종료 버튼 양쪽으로 정상 종료를 확인한다.</p>
+        <p>빌드 후 같은 PC에서 HTTP/HTTPS 포트를 바꿔 두 인스턴스를 띄워(<code>--port 17080 --sport 17443</code>, <code>--port 17081 --sport 17444</code>) 상호 발견·쪽지·공유 링크를 확인.
+        UDP 17000은 고정 바인드지만 discovery 소켓이 <code>SO_REUSEADDR</code>를 설정하므로 같은 PC 다중 인스턴스 테스트가 가능해야 한다(§03 포트 표 참고).
+        그다음 다른 PC로 LAN 검증. 마지막에 <code>exit</code>, 종료 버튼, SIGINT 세 경로로 정상 종료를 확인한다.</p>
       </div>
 
       <div class="footer">
@@ -801,32 +825,39 @@ const PHASES = [
     {t:"#2 peer.Registry: Upsert / Snapshot / Expire(ttl)", dod:"DoD: 만료·중복 upsert 단위 테스트 통과"},
   ]},
   {id:"P2", title:"Discovery (UDP)", goal:"서로 발견", tasks:[
-    {t:"#3 HELLO/BYE JSON encode·decode", dod:"DoD: 라운드트립 테스트"},
+    {t:"#3 HELLO/BYE v2 JSON encode·decode", dod:"DoD: httpsPort·fingerprint 포함 라운드트립 테스트"},
     {t:"#4 broadcast(ticker) + listen, src addr에서 IP 취득, 자기 id 필터", dod:"DoD: 두 인스턴스 ≤6초 상호 발견"},
   ]},
-  {id:"P3", title:"HTTP + WS Hub", goal:"통신 평면", tasks:[
-    {t:"#5 net/http + embed 정적 서빙 + 포트 폴백, /api/peers 핸들러", dod:"DoD: httptest 핸들러 테스트"},
+  {id:"P3", title:"HTTP/HTTPS + WS Hub", goal:"통신 평면", tasks:[
+    {t:"#5 net/http + HTTPS + embed 정적 서빙 + 포트 폴백, /api/peers 핸들러", dod:"DoD: httptest 핸들러 테스트"},
     {t:"#6 channel 기반 WS Hub (register/unregister/broadcast)", dod:"DoD: go test -race 통과"},
   ]},
   {id:"P4", title:"메시징", goal:"쪽지 왕복", tasks:[
-    {t:"#7 /api/send → 상대 /inbox/message 중계, 수신 시 WS 푸시", dod:"DoD: A→B 라운드트립 + 오프라인 실패 표시"},
+    {t:"#7 /api/send → 상대 HTTPS /inbox/message 중계, 수신 시 WS 푸시 + SQLite 저장", dod:"DoD: A→B 라운드트립 + 오프라인 실패 표시"},
   ]},
   {id:"P5", title:"파일 전송", goal:"바이너리 왕복", tasks:[
-    {t:"#8 /api/sendfile → /inbox/file 스트리밍 저장, 충돌 회피, ../ 차단", dod:"DoD: SHA-256 왕복 동일"},
+    {t:"#8 /api/sendfile → HTTPS announce + HTTP body PUT 스트리밍 저장, 충돌 회피, ../ 차단", dod:"DoD: SHA-256 왕복 동일"},
   ]},
   {id:"P6", title:"URL 공유 (신규)", goal:"링크로 노출", tasks:[
     {t:"#9 share.Store: 토큰 발급/조회/회수", dod:"DoD: 발급·회수·미존재 테스트"},
-    {t:"#10 GET /s/{token}: image=인라인 · text=미리보기 · 그 외=다운로드", dod:"DoD: content-type 분기 + 404 테스트"},
+    {t:"#10 share HTTP 핸들러 4종 (POST/GET/DELETE + GET /s/{token})", dod:"DoD: content-type 분기 + 404 테스트"},
   ]},
   {id:"P7", title:"웹 UI", goal:"화면", tasks:[
     {t:"#11 index/app.js/style.css: 피어·대화·첨부·공유·종료버튼, 반응형(Fold)", dod:"DoD: 두 인스턴스 수동 시나리오"},
     {t:"#12 브라우저 자동 오픈(OS 분기)", dod:"DoD: Win/mac/Linux 분기 확인"},
   ]},
   {id:"P8", title:"Graceful Shutdown 통합", goal:"3경로 수렴", tasks:[
-    {t:"#13 POST /api/shutdown + BYE 브로드캐스트 + Shutdown(3s)", dod:"DoD: exit·버튼 두 경로 -race 통과, 포트 즉시 해제"},
+    {t:"#13 POST /api/shutdown + BYE 브로드캐스트 + Shutdown(3s)", dod:"DoD: exit·버튼·SIGINT 세 경로 -race 통과, 포트 즉시 해제"},
   ]},
   {id:"P9", title:"다듬기", goal:"정리·단순화", tasks:[
-    {t:"#14 구조화 로깅 · 플래그(--name --port) · README 검증 절 · 동시성 단순화", dod:"DoD: go vet 무경고, README 갱신"},
+    {t:"#14 구조화 로깅 · 플래그(--name --port --sport --db) · README 검증 절 · SQLite 히스토리", dod:"DoD: go vet 무경고, README 갱신"},
+  ]},
+  {id:"P10", title:"남은 개선", goal:"후속 품질", tasks:[
+    {t:"#15 채팅 검색", dod:"DoD: 현재 대화와 전체 히스토리 검색"},
+    {t:"#16 히스토리 export/import", dod:"DoD: JSON 내보내기/가져오기 + 충돌 처리"},
+    {t:"#17 대화방별 unread 영속화", dod:"DoD: 새로고침 후 unread 상태 유지"},
+    {t:"#18 모바일 UI 미세 조정", dod:"DoD: 좁은 화면 버튼/텍스트 겹침 없음"},
+    {t:"#19 E2E 브라우저 테스트", dod:"DoD: 핵심 송수신/공유/삭제 시나리오 자동화"},
   ]},
 ];
 
@@ -847,8 +878,10 @@ PHASES.forEach(p=>{
   ph.innerHTML=`<div class="head"><span class="pid">${p.id}</span><span class="ptitle">${p.title}</span><span class="pgoal">→ ${p.goal}</span></div>`;
   const body=document.createElement('div'); body.className='body';
   p.tasks.forEach(tk=>{
+    const doneByDefault=idx<14;
     const id='task_'+(idx++);
-    const checked=store.get(id)===true;
+    const saved=store.get(id);
+    const checked=saved==null?doneByDefault:saved===true;
     const row=document.createElement('div'); row.className='task'+(checked?' done':'');
     row.innerHTML=`<input type="checkbox" id="${id}" ${checked?'checked':''}/>
       <label for="${id}">${tk.t}<span class="dod">${tk.dod}</span></label>`;
